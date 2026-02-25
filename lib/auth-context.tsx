@@ -2,17 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Amplify } from 'aws-amplify';
-import { 
-  signIn, 
-  signUp, 
-  signOut, 
-  confirmSignUp, 
-  resendSignUpCode,
-  getCurrentUser,
-  fetchAuthSession,
-  type SignInInput,
-  type SignUpInput
-} from 'aws-amplify/auth';
+import { signIn, signUp, signOut, confirmSignUp, getCurrentUser, fetchAuthSession } from 'aws-amplify/auth';
 import { amplifyConfig } from './amplify-config';
 
 Amplify.configure(amplifyConfig, { ssr: true });
@@ -30,9 +20,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string, name: string) => Promise<void>;
   confirmSignup: (email: string, code: string) => Promise<void>;
-  resendCode: (email: string) => Promise<void>;
   logout: () => Promise<void>;
-  getAccessToken: () => Promise<string | null>;
   clearError: () => void;
 }
 
@@ -51,13 +39,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true);
       const currentUser = await getCurrentUser();
-      
       setUser({
         userId: currentUser.userId,
         email: currentUser.signInDetails?.loginId || '',
         name: currentUser.username,
       });
-      
       setError(null);
     } catch (err) {
       setUser(null);
@@ -70,32 +56,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true);
       setError(null);
-
-      const signInInput: SignInInput = {
-        username: email,
-        password,
-      };
-
-      const { isSignedIn } = await signIn(signInInput);
-
+      const { isSignedIn } = await signIn({ username: email, password });
       if (isSignedIn) {
         await checkUser();
       }
     } catch (err: any) {
-      console.error('Login error:', err);
-      
-      let errorMessage = 'Login failed. Please try again.';
-      
-      if (err.name === 'UserNotConfirmedException') {
-        errorMessage = 'Please verify your email address before logging in.';
-      } else if (err.name === 'NotAuthorizedException') {
-        errorMessage = 'Incorrect email or password.';
-      } else if (err.name === 'UserNotFoundException') {
-        errorMessage = 'No account found with this email address.';
-      } else if (err.message) {
-        errorMessage = err.message;
-      }
-      
+      const errorMessage = err.name === 'UserNotConfirmedException' 
+        ? 'Please verify your email first'
+        : err.name === 'NotAuthorizedException'
+        ? 'Incorrect email or password'
+        : err.message || 'Login failed';
       setError(errorMessage);
       throw new Error(errorMessage);
     } finally {
@@ -107,37 +77,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true);
       setError(null);
-
-      const signUpInput: SignUpInput = {
+      await signUp({
         username: email,
         password,
         options: {
-          userAttributes: {
-            email,
-            name,
-          },
+          userAttributes: { email, name },
           autoSignIn: true,
         },
-      };
-
-      const { isSignUpComplete, nextStep } = await signUp(signUpInput);
-
-      if (!isSignUpComplete && nextStep.signUpStep === 'CONFIRM_SIGN_UP') {
-        setError(null);
-      }
+      });
+      setError(null);
     } catch (err: any) {
-      console.error('Signup error:', err);
-      
-      let errorMessage = 'Signup failed. Please try again.';
-      
-      if (err.name === 'UsernameExistsException') {
-        errorMessage = 'An account with this email already exists.';
-      } else if (err.name === 'InvalidPasswordException') {
-        errorMessage = 'Password must be at least 8 characters with uppercase, lowercase, and numbers.';
-      } else if (err.message) {
-        errorMessage = err.message;
-      }
-      
+      const errorMessage = err.name === 'UsernameExistsException'
+        ? 'Account already exists'
+        : err.message || 'Signup failed';
       setError(errorMessage);
       throw new Error(errorMessage);
     } finally {
@@ -149,47 +101,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true);
       setError(null);
-
-      await confirmSignUp({
-        username: email,
-        confirmationCode: code,
-      });
-
+      await confirmSignUp({ username: email, confirmationCode: code });
       setError(null);
     } catch (err: any) {
-      console.error('Confirmation error:', err);
-      
-      let errorMessage = 'Verification failed. Please try again.';
-      
-      if (err.name === 'CodeMismatchException') {
-        errorMessage = 'Invalid verification code. Please check and try again.';
-      } else if (err.name === 'ExpiredCodeException') {
-        errorMessage = 'Verification code has expired. Please request a new one.';
-      } else if (err.message) {
-        errorMessage = err.message;
-      }
-      
+      const errorMessage = err.name === 'CodeMismatchException'
+        ? 'Invalid code'
+        : err.message || 'Verification failed';
       setError(errorMessage);
       throw new Error(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const resendCode = async (email: string) => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      await resendSignUpCode({
-        username: email,
-      });
-
-      setError(null);
-    } catch (err: any) {
-      console.error('Resend code error:', err);
-      setError(err.message || 'Failed to resend code. Please try again.');
-      throw err;
     } finally {
       setLoading(false);
     }
@@ -202,28 +121,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null);
       setError(null);
     } catch (err: any) {
-      console.error('Logout error:', err);
-      setError('Logout failed. Please try again.');
+      setError('Logout failed');
       throw err;
     } finally {
       setLoading(false);
     }
   };
 
-  const getAccessToken = async (): Promise<string | null> => {
-    try {
-      const session = await fetchAuthSession();
-      const idToken = session.tokens?.idToken?.toString();
-      return idToken || null;
-    } catch (err) {
-      console.error('Error getting access token:', err);
-      return null;
-    }
-  };
-
-  const clearError = () => {
-    setError(null);
-  };
+  const clearError = () => setError(null);
 
   const value = {
     user,
@@ -232,9 +137,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     login,
     signup,
     confirmSignup,
-    resendCode,
     logout,
-    getAccessToken,
     clearError,
   };
 
@@ -244,7 +147,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error('useAuth must be used within AuthProvider');
   }
   return context;
 }

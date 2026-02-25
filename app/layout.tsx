@@ -7,7 +7,7 @@ const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: 'DeadlineSync - Academic Deadline Manager',
-  description: 'Track and manage your academic assignments with ease',
+  description: 'Track and manage your academic assignments',
 }
 
 export default function RootLayout({
