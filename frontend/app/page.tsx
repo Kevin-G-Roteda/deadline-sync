@@ -12,21 +12,40 @@ import { CheckCircle2, AlertCircle, Loader2, Target, Mail } from 'lucide-react';
 function AuthForm() {
   const { login, signup, confirmSignup, error, loading } = useAuth();
   const [mode, setMode] = useState<'login' | 'signup' | 'confirm'>('login');
-  const [formData, setFormData] = useState({ email: '', password: '', name: '', confirmationCode: '' });
+  const [formData, setFormData] = useState({ 
+    email: '', 
+    password: '', 
+    name: '', 
+    confirmationCode: '' 
+  });
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    try { await login(formData.email, formData.password); } catch (err) { console.error(err); }
+    try {
+      await login(formData.email, formData.password);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    try { await signup(formData.email, formData.password, formData.name); setMode('confirm'); } catch (err) { console.error(err); }
+    try {
+      await signup(formData.email, formData.password, formData.name);
+      setMode('confirm');
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const handleConfirm = async (e: React.FormEvent) => {
     e.preventDefault();
-    try { await confirmSignup(formData.email, formData.confirmationCode); await login(formData.email, formData.password); } catch (err) { console.error(err); }
+    try {
+      await confirmSignup(formData.email, formData.confirmationCode);
+      await login(formData.email, formData.password);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   return (
@@ -39,34 +58,164 @@ function AuthForm() {
             </div>
             <div>
               <CardTitle className="text-2xl">DeadlineSync</CardTitle>
-              <CardDescription>{mode === 'login' ? 'Sign in' : mode === 'signup' ? 'Create account' : 'Verify email'}</CardDescription>
+              <CardDescription>
+                {mode === 'login' && 'Sign in to your account'}
+                {mode === 'signup' && 'Create a new account'}
+                {mode === 'confirm' && 'Verify your email'}
+              </CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          {error && <Alert variant="destructive" className="mb-4"><AlertCircle className="h-4 w-4" /><AlertDescription>{error}</AlertDescription></Alert>}
+          {error && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
           {mode === 'login' && (
             <form onSubmit={handleLogin} className="space-y-4">
-              <div><Label>Email</Label><Input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} required /></div>
-              <div><Label>Password</Label><Input type="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} required /></div>
-              <Button type="submit" className="w-full bg-teal-600" disabled={loading}>{loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Signing in...</> : 'Sign In'}</Button>
-              <div className="text-center"><Button variant="link" onClick={() => setMode('signup')} type="button">Sign up</Button></div>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  required
+                  disabled={loading}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  required
+                  disabled={loading}
+                />
+              </div>
+              <Button type="submit" className="w-full bg-teal-600 hover:bg-teal-700" disabled={loading}>
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Signing in...
+                  </>
+                ) : (
+                  'Sign In'
+                )}
+              </Button>
+              <div className="text-center text-sm">
+                <span className="text-muted-foreground">Don&apos;t have an account? </span>
+                <Button
+                  variant="link"
+                  className="p-0 h-auto text-teal-600 hover:text-teal-700"
+                  onClick={() => setMode('signup')}
+                  type="button"
+                >
+                  Sign up
+                </Button>
+              </div>
             </form>
           )}
+
           {mode === 'signup' && (
             <form onSubmit={handleSignup} className="space-y-4">
-              <div><Label>Name</Label><Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required /></div>
-              <div><Label>Email</Label><Input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} required /></div>
-              <div><Label>Password</Label><Input type="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} required minLength={8} /></div>
-              <Button type="submit" className="w-full bg-teal-600" disabled={loading}>{loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Creating...</> : 'Create Account'}</Button>
-              <div className="text-center"><Button variant="link" onClick={() => setMode('login')} type="button">Sign in</Button></div>
+              <div className="space-y-2">
+                <Label htmlFor="name">Full Name</Label>
+                <Input
+                  id="name"
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  required
+                  disabled={loading}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="signup-email">Email</Label>
+                <Input
+                  id="signup-email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  required
+                  disabled={loading}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="signup-password">Password</Label>
+                <Input
+                  id="signup-password"
+                  type="password"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  required
+                  disabled={loading}
+                  minLength={8}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Min 8 characters with uppercase, lowercase, and numbers
+                </p>
+              </div>
+              <Button type="submit" className="w-full bg-teal-600 hover:bg-teal-700" disabled={loading}>
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Creating account...
+                  </>
+                ) : (
+                  'Create Account'
+                )}
+              </Button>
+              <div className="text-center text-sm">
+                <span className="text-muted-foreground">Already have an account? </span>
+                <Button
+                  variant="link"
+                  className="p-0 h-auto text-teal-600 hover:text-teal-700"
+                  onClick={() => setMode('login')}
+                  type="button"
+                >
+                  Sign in
+                </Button>
+              </div>
             </form>
           )}
+
           {mode === 'confirm' && (
             <form onSubmit={handleConfirm} className="space-y-4">
-              <Alert><Mail className="h-4 w-4" /><AlertDescription>Code sent to {formData.email}</AlertDescription></Alert>
-              <div><Label>Verification Code</Label><Input value={formData.confirmationCode} onChange={(e) => setFormData({ ...formData, confirmationCode: e.target.value })} required maxLength={6} /></div>
-              <Button type="submit" className="w-full bg-teal-600" disabled={loading}>{loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Verifying...</> : 'Verify Email'}</Button>
+              <Alert className="bg-blue-50 border-blue-200">
+                <Mail className="h-4 w-4 text-blue-600" />
+                <AlertDescription className="text-blue-900">
+                  Verification code sent to {formData.email}
+                </AlertDescription>
+              </Alert>
+              <div className="space-y-2">
+                <Label htmlFor="code">Verification Code</Label>
+                <Input
+                  id="code"
+                  type="text"
+                  placeholder="123456"
+                  value={formData.confirmationCode}
+                  onChange={(e) => setFormData({ ...formData, confirmationCode: e.target.value })}
+                  required
+                  disabled={loading}
+                  maxLength={6}
+                />
+              </div>
+              <Button type="submit" className="w-full bg-teal-600 hover:bg-teal-700" disabled={loading}>
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Verifying...
+                  </>
+                ) : (
+                  'Verify Email'
+                )}
+              </Button>
             </form>
           )}
         </CardContent>
@@ -77,12 +226,50 @@ function AuthForm() {
 
 export default function Dashboard() {
   const { user, loading } = useAuth();
-  if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-teal-600" /></div>;
-  if (!user) return <AuthForm />;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
+        <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <AuthForm />;
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-8">
-      <Card><CardHeader><CardTitle>🎉 DeadlineSync Week 6 Complete!</CardTitle><CardDescription>Welcome {user.email}!</CardDescription></CardHeader>
-      <CardContent><Alert className="border-teal-200 bg-teal-50"><CheckCircle2 className="h-4 w-4 text-teal-600" /><AlertTitle>Authenticated</AlertTitle><AlertDescription>Frontend deployed - Ready for Week 7!</AlertDescription></Alert></CardContent></Card>
+      <div className="container mx-auto max-w-4xl">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-2xl">🎉 DeadlineSync Week 6 Complete!</CardTitle>
+            <CardDescription>Welcome back, {user.email}!</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Alert className="mb-4 border-teal-200 bg-teal-50">
+              <CheckCircle2 className="h-4 w-4 text-teal-600" />
+              <AlertTitle className="text-teal-900">Authenticated Session Active</AlertTitle>
+              <AlertDescription className="text-teal-700">
+                Frontend deployed successfully - Ready for Week 7 backend integration!
+              </AlertDescription>
+            </Alert>
+            <div className="space-y-4">
+              <div>
+                <h3 className="font-semibold mb-2">What is Working:</h3>
+                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+                  <li>Next.js 14 frontend with TypeScript</li>
+                  <li>shadcn/ui components</li>
+                  <li>AWS Cognito authentication ready</li>
+                  <li>User signup and login flow</li>
+                  <li>Responsive design</li>
+                </ul>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
@@ -90,26 +277,7 @@ export default function Dashboard() {
 
 ---
 
-### **Step 4: Commit**
+### **Commit:**
 ```
-1. Scroll down to bottom
-2. In "Commit message" box, type: feat: Add DeadlineSync authentication UI
-3. Click: Commit changes
-```
-
----
-
-### **Step 5: Wait for Vercel**
-```
-Vercel will auto-deploy in ~2 minutes
-Watch: https://vercel.com/dashboard
-```
-
----
-
-### **Step 6: Check Live Site**
-```
-1. Wait 2 minutes
-2. Open: https://deadline-sync-mu.vercel.app
-3. Hard refresh: Ctrl+Shift+R
-4. Should see DeadlineSync! 🎉
+Commit message: fix: Clean up page.tsx syntax errors
+Click: Commit changes
