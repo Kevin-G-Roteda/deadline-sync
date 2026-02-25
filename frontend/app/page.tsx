@@ -1,5 +1,4 @@
 'use client';
-export const dynamic = 'force-dynamic';
 
 import { useState } from 'react';
 import { useState } from 'react';
@@ -10,6 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { CheckCircle2, AlertCircle, Loader2, Target, Mail } from 'lucide-react';
+
+export const dynamic = 'force-dynamic';
 
 function AuthForm() {
   const { login, signup, confirmSignup, error, loading } = useAuth();
