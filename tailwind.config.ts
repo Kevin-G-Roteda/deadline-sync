@@ -78,18 +78,3 @@ const config: Config = {
 };
 
 export default config;
-```
-
-**Save:** Ctrl+X, Y, Enter
-
----
-
-### **Option 2: Create via File Explorer (Windows)**
-```
-1. Open File Explorer
-2. Go to: C:\Users\undea\Documents\projects\deadlinesync-fresh
-3. Right-click → New → Text Document
-4. Name it: tailwind.config.ts
-5. Open in Notepad
-6. Paste the code above
-7. Save
