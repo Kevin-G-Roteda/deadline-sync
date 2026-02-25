@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { CheckCircle2, AlertCircle, Loader2, Target, Mail } from 'lucide-react';
 
-export const dynamic = 'force-dynamic';
+const isClient = typeof window !== 'undefined';
 
 function AuthForm() {
   const { login, signup, confirmSignup, error, loading } = useAuth();
@@ -229,8 +229,8 @@ function AuthForm() {
 export default function Dashboard() {
   const { user, loading } = useAuth();
 
-  if (loading) {
-    return (
+  if (!isClient) {
+    return null(
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
         <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
       </div>
