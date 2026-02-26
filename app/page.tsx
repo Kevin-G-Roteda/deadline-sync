@@ -198,12 +198,10 @@ function AuthForm() {
                 <Input
                   id="code"
                   type="text"
-                  placeholder="123456"
                   value={formData.confirmationCode}
                   onChange={(e) => setFormData({ ...formData, confirmationCode: e.target.value })}
                   required
                   disabled={loading}
-                  maxLength={6}
                 />
               </div>
               <Button type="submit" className="w-full bg-teal-600 hover:bg-teal-700" disabled={loading}>
@@ -213,7 +211,10 @@ function AuthForm() {
                     Verifying...
                   </>
                 ) : (
-                  'Verify Email'
+                  <>
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                    Verify and Sign In
+                  </>
                 )}
               </Button>
             </form>
@@ -224,52 +225,7 @@ function AuthForm() {
   );
 }
 
-export default function Dashboard() {
-  const { user, loading } = useAuth();
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
-        <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <AuthForm />;
-  }
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-8">
-      <div className="container mx-auto max-w-4xl">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-2xl">🎉 DeadlineSync Week 6 Complete!</CardTitle>
-            <CardDescription>Welcome back, {user.email}!</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Alert className="mb-4 border-teal-200 bg-teal-50">
-              <CheckCircle2 className="h-4 w-4 text-teal-600" />
-              <AlertTitle className="text-teal-900">Authenticated Session Active</AlertTitle>
-              <AlertDescription className="text-teal-700">
-                Frontend deployed successfully - Ready for Week 7 backend integration!
-              </AlertDescription>
-            </Alert>
-            <div className="space-y-4">
-              <div>
-                <h3 className="font-semibold mb-2">What is Working:</h3>
-                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
-                  <li>Next.js 14 frontend with TypeScript</li>
-                  <li>shadcn/ui components</li>
-                  <li>AWS Cognito authentication ready</li>
-                  <li>User signup and login flow</li>
-                  <li>Responsive design</li>
-                </ul>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  );
+export default function Page() {
+  return <AuthForm />;
 }
+
