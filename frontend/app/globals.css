@@ -25,6 +25,19 @@
   --radius: 0.5rem;
 }
 
+/* Ensure layout shell is always visible even if Tailwind loads late */
+html {
+  height: 100%;
+}
+body {
+  min-height: 100%;
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  background-color: #f1f5f9;
+  color: #0f172a;
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
 .dark {
   --background: 222.2 84% 4.9%;
   --foreground: 210 40% 98%;
