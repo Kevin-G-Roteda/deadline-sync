@@ -60,11 +60,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await new Promise((r) => setTimeout(r, 0));
       await checkUser();
     } catch (err: any) {
-      const errorMessage = err.name === 'UserNotConfirmedException' 
+      const isUnconfirmed = err?.name === 'UserNotConfirmedException' || err?.message?.includes('User is not confirmed');
+      const errorMessage = isUnconfirmed
         ? 'Please verify your email first'
-        : err.name === 'NotAuthorizedException'
+        : err?.name === 'NotAuthorizedException'
         ? 'Incorrect email or password'
-        : err.message || 'Login failed';
+        : err?.message || 'Login failed';
       setError(errorMessage);
       throw new Error(errorMessage);
     } finally {

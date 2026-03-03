@@ -21,9 +21,9 @@ function AuthForm() {
     confirmationCode: '',
   });
 
-  // When login says "verify your email", show the code entry form
+  // When login says user is not confirmed, show the code entry form
   React.useEffect(() => {
-    if (error === 'Please verify your email first') {
+    if (error && (error.includes('verify your email') || error.includes('User is not confirmed') || error.includes('not confirmed'))) {
       setMode('confirm');
     }
   }, [error]);
@@ -32,7 +32,9 @@ function AuthForm() {
     e.preventDefault();
     try {
       await login(formData.email, formData.password);
-    } catch (err) {
+    } catch (err: any) {
+      const isUnconfirmed = err?.message?.includes('verify your email') || err?.message?.includes('User is not confirmed');
+      if (isUnconfirmed) setMode('confirm');
       console.error(err);
     }
   };
