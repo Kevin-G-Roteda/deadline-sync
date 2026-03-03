@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { CheckCircle2, AlertCircle, Loader2, Target, Mail, User, Lock, Calendar, ClipboardList } from 'lucide-react';
-import { listAssignments, type Assignment } from '@/lib/assignments-api';
+import { listAssignments, type Assignment } from '../lib/assignments-api';
 
 function AuthForm() {
   const { login, signup, confirmSignup, error, loading, clearError } = useAuth();
