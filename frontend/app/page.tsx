@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -278,16 +279,24 @@ function AuthForm() {
                   'Verify Email'
                 )}
               </Button>
-              <div className="text-center text-sm">
-                <span className="text-slate-600">Wrong account? </span>
-                <Button
-                  variant="link"
-                  className="p-0 h-auto text-teal-600 hover:text-teal-700 font-medium"
-                  onClick={() => { setMode('login'); clearError(); }}
-                  type="button"
-                >
-                  Back to sign in
-                </Button>
+              <div className="text-center text-sm space-y-1">
+                <p>
+                  <span className="text-slate-600">Wrong account? </span>
+                  <Button
+                    variant="link"
+                    className="p-0 h-auto text-teal-600 hover:text-teal-700 font-medium"
+                    onClick={() => { setMode('login'); clearError(); }}
+                    type="button"
+                  >
+                    Back to sign in
+                  </Button>
+                </p>
+                <p>
+                  <span className="text-slate-600">Opened the link from your email? </span>
+                  <Link href={formData.email ? `/verify?email=${encodeURIComponent(formData.email)}` : '/verify'} className="text-teal-600 hover:text-teal-700 font-medium underline underline-offset-2">
+                    Go to verify page
+                  </Link>
+                </p>
               </div>
             </form>
           )}
