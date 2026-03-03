@@ -57,6 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(true);
       setError(null);
       await signIn({ username: email, password });
+      await new Promise((r) => setTimeout(r, 0));
       await checkUser();
     } catch (err: any) {
       const errorMessage = err.name === 'UserNotConfirmedException' 
