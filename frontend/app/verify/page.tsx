@@ -69,7 +69,7 @@ function VerifyForm() {
             <div>
               <CardTitle className="text-2xl font-semibold text-slate-900">Verify your email</CardTitle>
               <CardDescription className="text-slate-500">
-                Enter the 6-digit code we sent to your email, then sign in.
+                Enter the 6-digit code we sent to your email, then sign in. Use this page if you opened the link from the email.
               </CardDescription>
             </div>
           </div>
