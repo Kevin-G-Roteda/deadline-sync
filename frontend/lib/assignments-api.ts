@@ -28,17 +28,16 @@ export interface Assignment {
   updatedAt?: string;
 }
 
-function parseApiErrorBody(res: Response): string {
+async function parseApiErrorBody(res: Response): Promise<string> {
   if (res.status === 401) {
-    return res
-      .clone()
-      .json()
-      .then((body: { __type?: string; message?: string }) =>
-        body?.__type === 'UserNotConfirmedException' ? 'Please verify your email first' : 'Not authorized'
-      )
-      .catch(() => 'Not authorized');
+    try {
+      const body = (await res.clone().json()) as { __type?: string; message?: string };
+      return body?.__type === 'UserNotConfirmedException' ? 'Please verify your email first' : 'Not authorized';
+    } catch {
+      return 'Not authorized';
+    }
   }
-  return Promise.resolve(`Failed to load assignments: ${res.status}`);
+  return `Failed to load assignments: ${res.status}`;
 }
 
 export async function listAssignments(): Promise<{ assignments: Assignment[]; count: number }> {
