@@ -11,7 +11,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { CheckCircle2, AlertCircle, Loader2, Target, Mail, User, Lock } from 'lucide-react';
 
 function AuthForm() {
-  const { login, signup, confirmSignup, error, loading } = useAuth();
+  const { login, signup, confirmSignup, error, loading, clearError } = useAuth();
   const [mode, setMode] = useState<'login' | 'signup' | 'confirm'>('login');
   const [formData, setFormData] = useState({
     email: '',
@@ -19,6 +19,13 @@ function AuthForm() {
     name: '',
     confirmationCode: '',
   });
+
+  // When login says "verify your email", show the code entry form
+  React.useEffect(() => {
+    if (error === 'Please verify your email first') {
+      setMode('confirm');
+    }
+  }, [error]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,6 +41,7 @@ function AuthForm() {
     try {
       await signup(formData.email, formData.password, formData.name);
       setMode('confirm');
+      clearError();
     } catch (err) {
       console.error(err);
     }
@@ -219,17 +227,35 @@ function AuthForm() {
               <Alert className="bg-blue-50 border-blue-200">
                 <Mail className="h-4 w-4 text-blue-600" />
                 <AlertDescription className="text-blue-900">
-                  Verification code sent to {formData.email}
+                  {formData.email
+                    ? `Enter the 6-digit code we sent to ${formData.email}`
+                    : 'Enter the 6-digit verification code from your email'}
                 </AlertDescription>
               </Alert>
+              {!formData.email && (
+                <div className="space-y-2">
+                  <Label htmlFor="confirm-email" className="text-slate-600">Email</Label>
+                  <Input
+                    id="confirm-email"
+                    type="email"
+                    placeholder="you@example.com"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    required
+                    disabled={loading}
+                  />
+                </div>
+              )}
               <div className="space-y-2">
                 <Label htmlFor="code" className="text-slate-600">Verification Code</Label>
                 <Input
                   id="code"
                   type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
                   placeholder="123456"
                   value={formData.confirmationCode}
-                  onChange={(e) => setFormData({ ...formData, confirmationCode: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, confirmationCode: e.target.value.replace(/\D/g, '').slice(0, 6) })}
                   required
                   disabled={loading}
                   maxLength={6}
@@ -245,6 +271,17 @@ function AuthForm() {
                   'Verify Email'
                 )}
               </Button>
+              <div className="text-center text-sm">
+                <span className="text-slate-600">Wrong account? </span>
+                <Button
+                  variant="link"
+                  className="p-0 h-auto text-teal-600 hover:text-teal-700 font-medium"
+                  onClick={() => { setMode('login'); clearError(); }}
+                  type="button"
+                >
+                  Back to sign in
+                </Button>
+              </div>
             </form>
           )}
         </CardContent>
