@@ -4,41 +4,27 @@ const login = async (email: string, password: string) => {
     setError(null);
 
     // 1️⃣ Sign in with Cognito
-    const signInResult = await signIn({ username: email, password });
+    await signIn({ username: email, password });
 
-    if (!signInResult?.isSignedIn) {
-      throw new Error('Authentication failed');
-    }
+    await new Promise((r) => setTimeout(r, 0));
 
     // 2️⃣ Get authenticated user
     const currentUser = await getCurrentUser();
 
-    const userPayload = {
-      userID: currentUser.userId,
-      email: currentUser.signInDetails?.loginId || '',
-      name: currentUser.username,
-    };
-
     // 3️⃣ Call API Gateway -> Lambda -> DynamoDB
-    const response = await fetch(
-      'https://9bxi8jswh3.execute-api.us-east-1.amazonaws.com/prod',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(userPayload),
-      }
-    );
+    await fetch('https://YOUR_API_ID.execute-api.us-east-1.amazonaws.com/prod/user', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        userID: currentUser.userId,
+        email: currentUser.signInDetails?.loginId || '',
+        name: currentUser.username,
+      }),
+    });
 
-    // 4️⃣ Handle API response safely
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => null);
-      console.error('User sync failed:', errorData);
-      // We DO NOT block login if Dynamo write fails
-    }
-
-    // 5️⃣ Update local auth state
+    // 4️⃣ Update local state
     await checkUser();
 
   } catch (err: any) {
