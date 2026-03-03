@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { CheckCircle2, AlertCircle, Loader2, Target, ClipboardList, Calendar, LogOut } from 'lucide-react';
-import { listAssignments, type Assignment } from '@/lib/assignments-api';
+import { listAssignments, type Assignment } from '../../lib/assignments-api';
 
 export default function DashboardPage() {
   const router = useRouter();
