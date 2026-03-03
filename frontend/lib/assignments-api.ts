@@ -43,12 +43,22 @@ async function parseApiErrorBody(res: Response): Promise<string> {
 export async function listAssignments(): Promise<{ assignments: Assignment[]; count: number }> {
   const base = getBaseUrl();
   if (!base) return { assignments: [], count: 0 };
-  const res = await fetch(`${base}/assignments`, { headers: await getAuthHeaders() });
-  if (!res.ok) {
-    const msg = await parseApiErrorBody(res);
-    throw new Error(msg);
+  try {
+    const res = await fetch(`${base}/assignments`, { headers: await getAuthHeaders() });
+    if (!res.ok) {
+      const msg = await parseApiErrorBody(res);
+      throw new Error(msg);
+    }
+    return res.json();
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (message === 'Failed to fetch' || message.includes('fetch')) {
+      throw new Error(
+        'Cannot reach the assignments API. Set NEXT_PUBLIC_API_URL in Vercel to your API Gateway URL and ensure the API is deployed and allows CORS.'
+      );
+    }
+    throw err;
   }
-  return res.json();
 }
 
 export async function createAssignment(body: { title: string; dueDate: string; courseId: string; description?: string; priority?: string }) {
