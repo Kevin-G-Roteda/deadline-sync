@@ -3,8 +3,15 @@
   "version": "1.0.0",
   "description": "Lambda function for managing DeadlineSync assignments",
   "main": "index.js",
+  "scripts": {
+    "test": "jest",
+    "test:ci": "npm test -- --ci"
+  },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.478.0",
     "@aws-sdk/lib-dynamodb": "^3.478.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
   }
 }
