@@ -7,6 +7,21 @@ import { amplifyConfig } from './amplify-config';
 
 Amplify.configure(amplifyConfig, { ssr: true });
 
+/** Parse Cognito/Amplify errors that may be raw JSON or Error objects so we never show raw JSON in the UI. */
+function parseCognitoError(err: any): { type?: string; message: string } {
+  const raw = err?.message ?? err?.error ?? String(err ?? '');
+  if (typeof raw !== 'string') return { message: 'Something went wrong' };
+  try {
+    const parsed = JSON.parse(raw) as { __type?: string; message?: string };
+    if (parsed && typeof parsed.message === 'string') {
+      return { type: parsed.__type, message: parsed.message };
+    }
+  } catch {
+    // not JSON, use as message
+  }
+  return { type: err?.name, message: raw };
+}
+
 interface User {
   userId: string;
   email: string;
@@ -60,12 +75,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await new Promise((r) => setTimeout(r, 0));
       await checkUser();
     } catch (err: any) {
-      const isUnconfirmed = err?.name === 'UserNotConfirmedException' || err?.message?.includes('User is not confirmed');
+      const { type: errType, message: errMsg } = parseCognitoError(err);
+      const isUnconfirmed = errType === 'UserNotConfirmedException' || errMsg?.includes('User is not confirmed');
       const errorMessage = isUnconfirmed
         ? 'Please verify your email first'
-        : err?.name === 'NotAuthorizedException'
+        : errType === 'NotAuthorizedException'
         ? 'Incorrect email or password'
-        : err?.message || 'Login failed';
+        : errMsg || 'Login failed';
       setError(errorMessage);
       throw new Error(errorMessage);
     } finally {
@@ -87,9 +103,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       setError(null);
     } catch (err: any) {
-      const errorMessage = err.name === 'UsernameExistsException'
+      const { type: errType, message: errMsg } = parseCognitoError(err);
+      const errorMessage = errType === 'UsernameExistsException'
         ? 'Account already exists'
-        : err.message || 'Signup failed';
+        : errMsg || 'Signup failed';
       setError(errorMessage);
       throw new Error(errorMessage);
     } finally {
@@ -104,9 +121,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await confirmSignUp({ username: email, confirmationCode: code });
       setError(null);
     } catch (err: any) {
-      const errorMessage = err.name === 'CodeMismatchException'
+      const { type: errType, message: errMsg } = parseCognitoError(err);
+      const errorMessage = errType === 'CodeMismatchException'
         ? 'Invalid code'
-        : err.message || 'Verification failed';
+        : errMsg || 'Verification failed';
       setError(errorMessage);
       throw new Error(errorMessage);
     } finally {

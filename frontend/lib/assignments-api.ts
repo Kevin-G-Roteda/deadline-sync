@@ -28,11 +28,27 @@ export interface Assignment {
   updatedAt?: string;
 }
 
+function parseApiErrorBody(res: Response): string {
+  if (res.status === 401) {
+    return res
+      .clone()
+      .json()
+      .then((body: { __type?: string; message?: string }) =>
+        body?.__type === 'UserNotConfirmedException' ? 'Please verify your email first' : 'Not authorized'
+      )
+      .catch(() => 'Not authorized');
+  }
+  return Promise.resolve(`Failed to load assignments: ${res.status}`);
+}
+
 export async function listAssignments(): Promise<{ assignments: Assignment[]; count: number }> {
   const base = getBaseUrl();
   if (!base) return { assignments: [], count: 0 };
   const res = await fetch(`${base}/assignments`, { headers: await getAuthHeaders() });
-  if (!res.ok) throw new Error(res.status === 401 ? 'Not authorized' : `Failed to load assignments: ${res.status}`);
+  if (!res.ok) {
+    const msg = await parseApiErrorBody(res);
+    throw new Error(msg);
+  }
   return res.json();
 }
 
@@ -45,8 +61,12 @@ export async function createAssignment(body: { title: string; dueDate: string; c
     body: JSON.stringify(body),
   });
   if (!res.ok) {
+    if (res.status === 401) {
+      const msg = await parseApiErrorBody(res);
+      throw new Error(msg);
+    }
     const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(err.error || `Failed to create: ${res.status}`);
+    throw new Error((err as { error?: string }).error || `Failed to create: ${res.status}`);
   }
   return res.json();
 }
