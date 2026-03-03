@@ -1,153 +1,60 @@
-'use client';
+const login = async (email: string, password: string) => {
+  try {
+    setLoading(true);
+    setError(null);
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Amplify } from 'aws-amplify';
-import { signIn, signUp, signOut, confirmSignUp, getCurrentUser, fetchAuthSession } from 'aws-amplify/auth';
-import { amplifyConfig } from './amplify-config';
+    // 1️⃣ Sign in with Cognito
+    const signInResult = await signIn({ username: email, password });
 
-Amplify.configure(amplifyConfig, { ssr: true });
-
-interface User {
-  userId: string;
-  email: string;
-  name?: string;
-}
-
-interface AuthContextType {
-  user: User | null;
-  loading: boolean;
-  error: string | null;
-  login: (email: string, password: string) => Promise<void>;
-  signup: (email: string, password: string, name: string) => Promise<void>;
-  confirmSignup: (email: string, code: string) => Promise<void>;
-  logout: () => Promise<void>;
-  clearError: () => void;
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    checkUser();
-  }, []);
-
-  const checkUser = async () => {
-    try {
-      setLoading(true);
-      const currentUser = await getCurrentUser();
-      setUser({
-        userId: currentUser.userId,
-        email: currentUser.signInDetails?.loginId || '',
-        name: currentUser.username,
-      });
-      setError(null);
-    } catch (err) {
-      setUser(null);
-    } finally {
-      setLoading(false);
+    if (!signInResult?.isSignedIn) {
+      throw new Error('Authentication failed');
     }
-  };
 
-  const login = async (email: string, password: string) => {
-    try {
-      setLoading(true);
-      setError(null);
-      await signIn({ username: email, password });
-      await new Promise((r) => setTimeout(r, 0));
-      await checkUser();
-    } catch (err: any) {
-      const isUnconfirmed = err?.name === 'UserNotConfirmedException' || err?.message?.includes('User is not confirmed');
-      const errorMessage = isUnconfirmed
-        ? 'Please verify your email first'
-        : err?.name === 'NotAuthorizedException'
-        ? 'Incorrect email or password'
-        : err?.message || 'Login failed';
-      setError(errorMessage);
-      throw new Error(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  };
+    // 2️⃣ Get authenticated user
+    const currentUser = await getCurrentUser();
 
-  const signup = async (email: string, password: string, name: string) => {
-    try {
-      setLoading(true);
-      setError(null);
-      await signUp({
-        username: email,
-        password,
-        options: {
-          userAttributes: { email, name },
-          autoSignIn: true,
+    const userPayload = {
+      userID: currentUser.userId,
+      email: currentUser.signInDetails?.loginId || '',
+      name: currentUser.username,
+    };
+
+    // 3️⃣ Call API Gateway -> Lambda -> DynamoDB
+    const response = await fetch(
+      'https://9bxi8jswh3.execute-api.us-east-1.amazonaws.com/prod',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
-      });
-      setError(null);
-    } catch (err: any) {
-      const errorMessage = err.name === 'UsernameExistsException'
-        ? 'Account already exists'
-        : err.message || 'Signup failed';
-      setError(errorMessage);
-      throw new Error(errorMessage);
-    } finally {
-      setLoading(false);
+        body: JSON.stringify(userPayload),
+      }
+    );
+
+    // 4️⃣ Handle API response safely
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      console.error('User sync failed:', errorData);
+      // We DO NOT block login if Dynamo write fails
     }
-  };
 
-  const confirmSignup = async (email: string, code: string) => {
-    try {
-      setLoading(true);
-      setError(null);
-      await confirmSignUp({ username: email, confirmationCode: code });
-      setError(null);
-    } catch (err: any) {
-      const errorMessage = err.name === 'CodeMismatchException'
-        ? 'Invalid code'
-        : err.message || 'Verification failed';
-      setError(errorMessage);
-      throw new Error(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  };
+    // 5️⃣ Update local auth state
+    await checkUser();
 
-  const logout = async () => {
-    try {
-      setLoading(true);
-      await signOut();
-      setUser(null);
-      setError(null);
-    } catch (err: any) {
-      setError('Logout failed');
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  };
+  } catch (err: any) {
+    const isUnconfirmed =
+      err?.name === 'UserNotConfirmedException' ||
+      err?.message?.includes('User is not confirmed');
 
-  const clearError = () => setError(null);
+    const errorMessage = isUnconfirmed
+      ? 'Please verify your email first'
+      : err?.name === 'NotAuthorizedException'
+      ? 'Incorrect email or password'
+      : err?.message || 'Login failed';
 
-  const value = {
-    user,
-    loading,
-    error,
-    login,
-    signup,
-    confirmSignup,
-    logout,
-    clearError,
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
-
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within AuthProvider');
+    setError(errorMessage);
+    throw new Error(errorMessage);
+  } finally {
+    setLoading(false);
   }
-  return context;
-}
+};
