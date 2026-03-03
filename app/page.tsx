@@ -2,6 +2,8 @@
 
 import * as React from 'react';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,10 +28,13 @@ function AuthForm() {
     }
   }, [error]);
 
+  const router = useRouter();
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       await login(formData.email, formData.password);
+      router.replace('/dashboard');
     } catch (err: any) {
       const isUnconfirmed = err?.message?.includes('verify your email') || err?.message?.includes('User is not confirmed');
       if (isUnconfirmed) setMode('confirm');
@@ -53,6 +58,7 @@ function AuthForm() {
     try {
       await confirmSignup(formData.email, formData.confirmationCode);
       await login(formData.email, formData.password);
+      router.replace('/dashboard');
     } catch (err) {
       console.error(err);
     }
@@ -275,16 +281,24 @@ function AuthForm() {
                   </>
                 )}
               </Button>
-              <div className="text-center text-sm">
-                <span className="text-slate-600">Wrong account? </span>
-                <Button
-                  variant="link"
-                  className="p-0 h-auto text-teal-600 hover:text-teal-700 font-medium"
-                  onClick={() => { setMode('login'); clearError(); }}
-                  type="button"
-                >
-                  Back to sign in
-                </Button>
+              <div className="text-center text-sm space-y-1">
+                <p>
+                  <span className="text-slate-600">Wrong account? </span>
+                  <Button
+                    variant="link"
+                    className="p-0 h-auto text-teal-600 hover:text-teal-700 font-medium"
+                    onClick={() => { setMode('login'); clearError(); }}
+                    type="button"
+                  >
+                    Back to sign in
+                  </Button>
+                </p>
+                <p>
+                  <span className="text-slate-600">Opened the link from your email? </span>
+                  <Link href={formData.email ? `/verify?email=${encodeURIComponent(formData.email)}` : '/verify'} className="text-teal-600 hover:text-teal-700 font-medium underline underline-offset-2">
+                    Go to verify page
+                  </Link>
+                </p>
               </div>
             </form>
           )}
@@ -294,49 +308,21 @@ function AuthForm() {
   );
 }
 
-function DashboardContent() {
-  const { user, loading } = useAuth();
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
-        <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <AuthForm />;
-  }
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-8">
-      <div className="container mx-auto max-w-4xl">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-2xl">🎉 DeadlineSync Week 6 Complete!</CardTitle>
-            <CardDescription>Welcome back, {user.email}!</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Alert className="mb-4 border-teal-200 bg-teal-50">
-              <CheckCircle2 className="h-4 w-4 text-teal-600" />
-              <AlertTitle className="text-teal-900">Authenticated Session Active</AlertTitle>
-              <AlertDescription className="text-teal-700">
-                You&apos;re signed in. Frontend deployed successfully!
-              </AlertDescription>
-            </Alert>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  );
-}
-
 export default function Page() {
+  const router = useRouter();
+  const { user, loading } = useAuth();
   const [mounted, setMounted] = React.useState(false);
+
   React.useEffect(() => {
     setMounted(true);
   }, []);
+
+  React.useEffect(() => {
+    if (mounted && !loading && user) {
+      router.replace('/dashboard');
+    }
+  }, [mounted, loading, user, router]);
+
   if (!mounted) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
@@ -344,6 +330,15 @@ export default function Page() {
       </div>
     );
   }
-  return <DashboardContent />;
+
+  if (loading || user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
+        <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
+      </div>
+    );
+  }
+
+  return <AuthForm />;
 }
 
