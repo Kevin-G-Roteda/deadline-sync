@@ -21,7 +21,7 @@ const login = async (email: string, password: string) => {
 
     // 3️⃣ Call API Gateway -> Lambda -> DynamoDB
     const response = await fetch(
-      'https://YOUR_API_ID.execute-api.us-east-1.amazonaws.com/prod/user',
+      'https://9bxi8jswh3.execute-api.us-east-1.amazonaws.com/prod',
       {
         method: 'POST',
         headers: {
