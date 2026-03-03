@@ -56,10 +56,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true);
       setError(null);
-      const { isSignedIn } = await signIn({ username: email, password });
-      if (isSignedIn) {
-        await checkUser();
-      }
+      await signIn({ username: email, password });
+      await checkUser();
     } catch (err: any) {
       const errorMessage = err.name === 'UserNotConfirmedException' 
         ? 'Please verify your email first'

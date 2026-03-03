@@ -292,7 +292,45 @@ function AuthForm() {
   );
 }
 
+function DashboardContent() {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
+        <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <AuthForm />;
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-8">
+      <div className="container mx-auto max-w-4xl">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-2xl">🎉 DeadlineSync Week 6 Complete!</CardTitle>
+            <CardDescription>Welcome back, {user.email}!</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Alert className="mb-4 border-teal-200 bg-teal-50">
+              <CheckCircle2 className="h-4 w-4 text-teal-600" />
+              <AlertTitle className="text-teal-900">Authenticated Session Active</AlertTitle>
+              <AlertDescription className="text-teal-700">
+                You&apos;re signed in. Frontend deployed successfully!
+              </AlertDescription>
+            </Alert>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
 export default function Page() {
-  return <AuthForm />;
+  return <DashboardContent />;
 }
 
