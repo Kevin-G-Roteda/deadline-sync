@@ -16,11 +16,12 @@ const client = new DynamoDBClient({
 
 const docClient = DynamoDBDocumentClient.from(client);
 
+// ✅ CORRECT TABLE NAMES
 const TABLE_NAME =
-    process.env.ASSIGNMENTS_TABLE || "DeadlineSync-Assignments";
+    process.env.ASSIGNMENTS_TABLE || "Assignments";
 
 const USERS_TABLE =
-    process.env.USERS_TABLE || "DeadlineSync-Users";
+    process.env.USERS_TABLE || "Users";
 
 const headers = {
     "Content-Type": "application/json",
@@ -33,6 +34,7 @@ exports.handler = async (event) => {
     console.log("Event:", JSON.stringify(event, null, 2));
 
     try {
+        // CORS
         if (event.httpMethod === "OPTIONS") {
             return {
                 statusCode: 200,
@@ -47,11 +49,10 @@ exports.handler = async (event) => {
             event.requestContext?.authorizer?.claims?.sub ||
             "demo-user";
 
-        // ✅ NEW: Separate route for creating user
+        // ✅ EXACT ROUTE MATCH FOR USER CREATION
         if (
             event.httpMethod === "POST" &&
-            event.path &&
-            event.path.includes("/user")
+            event.path === "/assignments/user"
         ) {
             return await handleUserCreate(event);
         }
@@ -162,7 +163,7 @@ async function handleCreate(event, userId) {
     const assignment = {
         assignmentId: `assign_${Date.now()}_${Math.random()
             .toString(36)
-            .substr(2, 9)}`,
+            .substring(2, 9)}`,
         userId,
         title: body.title,
         courseId: body.courseId,
@@ -321,7 +322,7 @@ async function handleUserCreate(event) {
     }
 
     const user = {
-        userID: body.userID,
+        userID: body.userID, // ✅ matches DynamoDB partition key
         email: body.email,
         name: body.name || "",
         createdAt: new Date().toISOString()
