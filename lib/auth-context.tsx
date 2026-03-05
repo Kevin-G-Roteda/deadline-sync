@@ -54,7 +54,7 @@ const checkUser = async () => {
 try {
 const currentUser = await getCurrentUser();
 
-```
+
   setUser({
     userId: currentUser.userId,
     email: currentUser.signInDetails?.loginId || '',
@@ -67,7 +67,7 @@ const currentUser = await getCurrentUser();
 } finally {
   setLoading(false);
 }
-```
+
 
 };
 
@@ -76,7 +76,7 @@ try {
 setLoading(true);
 setError(null);
 
-```
+
   await signIn({ username: email, password });
 
   await new Promise((r) => setTimeout(r, 0));
@@ -102,14 +102,14 @@ setError(null);
 } finally {
   setLoading(false);
 }
-```
+
 
 };
 
 const signup = async (email: string, password: string, name: string) => {
 try {
 
-```
+
   setLoading(true);
   setError(null);
 
@@ -139,13 +139,13 @@ try {
 } finally {
   setLoading(false);
 }
-```
+
 
 };
 
 const confirmSignup = async (email: string, code: string) => {
 
-```
+
 try {
 
   setLoading(true);
@@ -190,13 +190,13 @@ try {
 } finally {
   setLoading(false);
 }
-```
+
 
 };
 
 const logout = async () => {
 
-```
+
 try {
 
   setLoading(true);
@@ -214,7 +214,7 @@ try {
 } finally {
   setLoading(false);
 }
-```
+
 
 };
 
