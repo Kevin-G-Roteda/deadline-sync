@@ -1,16 +1,32 @@
 name: Regenerate Lockfile
 
 on:
-  workflow_dispatch: # allows you to manually trigger it
+  workflow_dispatch: # Allows manual triggering from the Actions tab
 
 jobs:
   regenerate-lockfile:
     runs-on: ubuntu-latest
+
     steps:
+      # 1️⃣ Checkout the repo with full history so pushes work
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0   # Ensures full git history so commits/pushes work
+          fetch-depth: 0
+
+      # 2️⃣ Setup Node (required to run npm commands)
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      # 3️⃣ Install dependencies and regenerate lockfile
+      - name: Install dependencies
+        run: |
+          npm install
+          npm ci
+
+      # 4️⃣ Commit and push package-lock.json using your PAT
       - name: Commit new lockfile
         run: |
           git config --global user.name "github-actions"
