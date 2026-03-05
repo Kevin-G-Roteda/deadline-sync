@@ -41,6 +41,7 @@ clearError: () => void;
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+
 const [user, setUser] = useState<User | null>(null);
 const [loading, setLoading] = useState(true);
 const [error, setError] = useState<string | null>(null);
@@ -80,7 +81,9 @@ setError(null);
 
   await new Promise((r) => setTimeout(r, 0));
   await checkUser();
+
 } catch (err: any) {
+
   const { type: errType, message: errMsg } = parseCognitoError(err);
 
   const isUnconfirmed =
@@ -95,6 +98,7 @@ setError(null);
 
   setError(errorMessage);
   throw new Error(errorMessage);
+
 } finally {
   setLoading(false);
 }
@@ -104,10 +108,11 @@ setError(null);
 
 const signup = async (email: string, password: string, name: string) => {
 try {
-setLoading(true);
-setError(null);
 
 ```
+  setLoading(true);
+  setError(null);
+
   await signUp({
     username: email,
     password,
@@ -118,7 +123,9 @@ setError(null);
   });
 
   setError(null);
+
 } catch (err: any) {
+
   const { type: errType, message: errMsg } = parseCognitoError(err);
 
   const errorMessage =
@@ -128,6 +135,7 @@ setError(null);
 
   setError(errorMessage);
   throw new Error(errorMessage);
+
 } finally {
   setLoading(false);
 }
@@ -136,16 +144,20 @@ setError(null);
 };
 
 const confirmSignup = async (email: string, code: string) => {
-try {
-setLoading(true);
-setError(null);
 
 ```
-  await confirmSignUp({ username: email, confirmationCode: code });
+try {
+
+  setLoading(true);
+  setError(null);
+
+  await confirmSignUp({
+    username: email,
+    confirmationCode: code,
+  });
 
   const currentUser = await getCurrentUser();
 
-  // Write user to DynamoDB
   await fetch(
     "https://9bxi8jswh3.execute-api.us-east-1.amazonaws.com/prod/assignments/user",
     {
@@ -162,7 +174,9 @@ setError(null);
   );
 
   setError(null);
+
 } catch (err: any) {
+
   const { type: errType, message: errMsg } = parseCognitoError(err);
 
   const errorMessage =
@@ -172,6 +186,7 @@ setError(null);
 
   setError(errorMessage);
   throw new Error(errorMessage);
+
 } finally {
   setLoading(false);
 }
@@ -180,17 +195,27 @@ setError(null);
 };
 
 const logout = async () => {
+
+```
 try {
-setLoading(true);
-await signOut();
-setUser(null);
-setError(null);
+
+  setLoading(true);
+
+  await signOut();
+
+  setUser(null);
+  setError(null);
+
 } catch {
-setError('Logout failed');
-throw new Error('Logout failed');
+
+  setError('Logout failed');
+  throw new Error('Logout failed');
+
 } finally {
-setLoading(false);
+  setLoading(false);
 }
+```
+
 };
 
 const clearError = () => setError(null);
@@ -206,14 +231,20 @@ logout,
 clearError,
 };
 
-return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+return (
+<AuthContext.Provider value={value}>
+{children}
+</AuthContext.Provider>
+);
 }
 
 export function useAuth() {
+
 const context = useContext(AuthContext);
+
 if (context === undefined) {
 throw new Error('useAuth must be used within AuthProvider');
 }
+
 return context;
 }
-
