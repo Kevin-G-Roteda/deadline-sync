@@ -7,6 +7,10 @@ jobs:
   regenerate-lockfile:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0   # Ensures full git history so commits/pushes work
       - name: Commit new lockfile
         run: |
           git config --global user.name "github-actions"
