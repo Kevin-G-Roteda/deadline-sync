@@ -7,18 +7,17 @@ import { amplifyConfig } from './amplify-config';
 
 Amplify.configure(amplifyConfig, { ssr: true });
 
-/** Parse Cognito/Amplify errors that may be raw JSON or Error objects so we never show raw JSON in the UI. */
 function parseCognitoError(err: any): { type?: string; message: string } {
 const raw = err?.message ?? err?.error ?? String(err ?? '');
 if (typeof raw !== 'string') return { message: 'Something went wrong' };
+
 try {
 const parsed = JSON.parse(raw) as { __type?: string; message?: string };
 if (parsed && typeof parsed.message === 'string') {
 return { type: parsed.__type, message: parsed.message };
 }
-} catch {
-// not JSON
-}
+} catch {}
+
 return { type: err?.name, message: raw };
 }
 
@@ -52,34 +51,42 @@ checkUser();
 
 const checkUser = async () => {
 try {
-setLoading(true);
 const currentUser = await getCurrentUser();
-setUser({
-userId: currentUser.userId,
-email: currentUser.signInDetails?.loginId || '',
-name: currentUser.username,
-});
-setError(null);
+
+```
+  setUser({
+    userId: currentUser.userId,
+    email: currentUser.signInDetails?.loginId || '',
+    name: currentUser.username,
+  });
+
+  setError(null);
 } catch {
-setUser(null);
+  setUser(null);
 } finally {
-setLoading(false);
+  setLoading(false);
 }
+```
+
 };
 
 const login = async (email: string, password: string) => {
 try {
 setLoading(true);
 setError(null);
-await signIn({ username: email, password });
-await new Promise((r) => setTimeout(r, 0));
-await checkUser();
-} catch (err: any) {
-const { type: errType, message: errMsg } = parseCognitoError(err);
-const isUnconfirmed =
-errType === 'UserNotConfirmedException' || errMsg?.includes('User is not confirmed');
 
 ```
+  await signIn({ username: email, password });
+
+  await new Promise((r) => setTimeout(r, 0));
+  await checkUser();
+} catch (err: any) {
+  const { type: errType, message: errMsg } = parseCognitoError(err);
+
+  const isUnconfirmed =
+    errType === 'UserNotConfirmedException' ||
+    errMsg?.includes('User is not confirmed');
+
   const errorMessage = isUnconfirmed
     ? 'Please verify your email first'
     : errType === 'NotAuthorizedException'
@@ -138,7 +145,7 @@ setError(null);
 
   const currentUser = await getCurrentUser();
 
-  // 🔹 WRITE USER TO DYNAMODB
+  // Write user to DynamoDB
   await fetch(
     "https://9bxi8jswh3.execute-api.us-east-1.amazonaws.com/prod/assignments/user",
     {
