@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { CheckCircle2, AlertCircle, Loader2, Target, Mail } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Loader2, Target, Mail, LogOut } from 'lucide-react';
 
 function AuthForm() {
   const { login, signup, confirmSignup, error, loading } = useAuth();
@@ -226,7 +226,17 @@ function AuthForm() {
 }
 
 function DashboardContent() {
-  const { user, loading } = useAuth();
+  const { user, loading, logout } = useAuth();
+  const [loggingOut, setLoggingOut] = React.useState(false);
+
+  const handleLogout = async () => {
+    try {
+      setLoggingOut(true);
+      await logout();
+    } finally {
+      setLoggingOut(false);
+    }
+  };
   
   if (loading) {
     return (
@@ -256,6 +266,18 @@ function DashboardContent() {
                 Dashboard scaffold is ready for Canvas API, S3, and assignment sync integrations.
               </AlertDescription>
             </Alert>
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleLogout}
+                disabled={loggingOut}
+                className="gap-2"
+              >
+                {loggingOut ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
+                {loggingOut ? 'Signing out...' : 'Sign out'}
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
