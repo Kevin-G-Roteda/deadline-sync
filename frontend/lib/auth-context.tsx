@@ -2,8 +2,9 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Amplify } from 'aws-amplify';
-import { signIn, signUp, signOut, confirmSignUp, getCurrentUser, fetchAuthSession } from 'aws-amplify/auth';
+import { signIn, signUp, signOut, confirmSignUp, getCurrentUser } from 'aws-amplify/auth';
 import { amplifyConfig } from './amplify-config';
+import { upsertUserProfile } from './assignments-api';
 
 Amplify.configure(amplifyConfig, { ssr: true });
 
@@ -41,6 +42,16 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+async function syncUserProfile(user: User) {
+  if (!user.userId || !user.email) return;
+  try {
+    await upsertUserProfile(user);
+  } catch (err) {
+    // Keep auth flow resilient if API is unavailable.
+    console.warn('User profile sync failed:', err);
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -54,11 +65,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true);
       const currentUser = await getCurrentUser();
-      setUser({
+      const resolvedUser = {
         userId: currentUser.userId,
-        email: currentUser.signInDetails?.loginId || '',
+        email: currentUser.signInDetails?.loginId || currentUser.username || '',
         name: currentUser.username,
-      });
+      };
+      setUser(resolvedUser);
+      await syncUserProfile(resolvedUser);
       setError(null);
     } catch (err) {
       setUser(null);

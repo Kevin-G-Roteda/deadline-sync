@@ -7,7 +7,7 @@ import { useAuth } from '@/lib/auth-context';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { CheckCircle2, AlertCircle, Loader2, Target, ClipboardList, Calendar, LogOut } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Loader2, Target, ClipboardList, Calendar, LogOut, Cloud, Database, Link2 } from 'lucide-react';
 import { listAssignments, type Assignment } from '../../lib/assignments-api';
 
 export default function DashboardPage() {
@@ -86,17 +86,41 @@ export default function DashboardPage() {
       <main className="container mx-auto max-w-4xl p-6 sm:p-8 space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle className="text-2xl">Dashboard</CardTitle>
-            <CardDescription>Welcome back, {user.name || user.email}!</CardDescription>
+            <CardTitle className="text-2xl">Welcome to DeadlineSync</CardTitle>
+            <CardDescription>Hi {user.name || user.email}, this dashboard is ready for your Canvas and AWS integrations.</CardDescription>
           </CardHeader>
           <CardContent>
             <Alert className="border-teal-200 bg-teal-50">
               <CheckCircle2 className="h-4 w-4 text-teal-600" />
-              <AlertTitle className="text-teal-900">You’re signed in</AlertTitle>
+              <AlertTitle className="text-teal-900">Authenticated and synced</AlertTitle>
               <AlertDescription className="text-teal-700">
-                Manage your assignments and deadlines below.
+                Your Cognito account is active and the app now attempts to sync your user profile to the `Users` DynamoDB table on login.
               </AlertDescription>
             </Alert>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Link2 className="h-5 w-5 text-teal-600" />
+              Integrations Roadmap
+            </CardTitle>
+            <CardDescription>Scaffold for upcoming capstone integrations.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-lg border border-slate-200 bg-white p-4">
+              <p className="font-medium text-slate-900 flex items-center gap-2"><Link2 className="h-4 w-4 text-slate-500" />Canvas API</p>
+              <p className="text-sm text-slate-600 mt-1">Add a secure Canvas token input and run import/sync jobs for deadlines.</p>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-white p-4">
+              <p className="font-medium text-slate-900 flex items-center gap-2"><Cloud className="h-4 w-4 text-slate-500" />S3 Storage</p>
+              <p className="text-sm text-slate-600 mt-1">Store supporting files like syllabi and assignment attachments.</p>
+            </div>
+            <div className="rounded-lg border border-slate-200 bg-white p-4">
+              <p className="font-medium text-slate-900 flex items-center gap-2"><Database className="h-4 w-4 text-slate-500" />DynamoDB</p>
+              <p className="text-sm text-slate-600 mt-1">Track users, imports, assignments, and sync metadata.</p>
+            </div>
           </CardContent>
         </Card>
 

@@ -245,7 +245,7 @@ function DashboardContent() {
       <div className="container mx-auto max-w-4xl">
         <Card>
           <CardHeader>
-            <CardTitle className="text-2xl">🎉 DeadlineSync Week 6 Complete!</CardTitle>
+            <CardTitle className="text-2xl">Welcome to DeadlineSync</CardTitle>
             <CardDescription>Welcome back, {user.email}!</CardDescription>
           </CardHeader>
           <CardContent>
@@ -253,7 +253,7 @@ function DashboardContent() {
               <CheckCircle2 className="h-4 w-4 text-teal-600" />
               <AlertTitle className="text-teal-900">Authenticated Session Active</AlertTitle>
               <AlertDescription className="text-teal-700">
-                Frontend deployed successfully!
+                Dashboard scaffold is ready for Canvas API, S3, and assignment sync integrations.
               </AlertDescription>
             </Alert>
           </CardContent>

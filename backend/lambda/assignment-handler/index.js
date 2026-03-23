@@ -309,8 +309,11 @@ async function handleDelete(event, userId) {
 
 async function handleUserCreate(event) {
     const body = JSON.parse(event.body || "{}");
+    const authUserId = event.requestContext?.authorizer?.claims?.sub;
+    const userID = body.userID || body.userId || authUserId;
+    const email = body.email || event.requestContext?.authorizer?.claims?.email;
 
-    if (!body.userID || !body.email) {
+    if (!userID || !email) {
         return {
             statusCode: 400,
             headers,
@@ -322,11 +325,44 @@ async function handleUserCreate(event) {
     }
 
     const user = {
-        userID: body.userID, // ✅ matches DynamoDB partition key
-        email: body.email,
+        userID, // ✅ matches DynamoDB partition key
+        email,
         name: body.name || "",
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
     };
+
+    const existing = await docClient.send(
+        new GetCommand({
+            TableName: USERS_TABLE,
+            Key: { userID }
+        })
+    );
+
+    if (existing.Item) {
+        await docClient.send(
+            new UpdateCommand({
+                TableName: USERS_TABLE,
+                Key: { userID },
+                UpdateExpression: "SET email = :email, #name = :name, updatedAt = :updatedAt",
+                ExpressionAttributeNames: { "#name": "name" },
+                ExpressionAttributeValues: {
+                    ":email": email,
+                    ":name": body.name || existing.Item.name || "",
+                    ":updatedAt": new Date().toISOString()
+                }
+            })
+        );
+
+        return {
+            statusCode: 200,
+            headers,
+            body: JSON.stringify({
+                message: "User updated successfully",
+                user: { ...existing.Item, email, name: body.name || existing.Item.name || "" }
+            })
+        };
+    }
 
     await docClient.send(
         new PutCommand({

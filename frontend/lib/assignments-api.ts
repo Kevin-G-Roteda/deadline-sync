@@ -28,6 +28,12 @@ export interface Assignment {
   updatedAt?: string;
 }
 
+export interface UserProfilePayload {
+  userId: string;
+  email: string;
+  name?: string;
+}
+
 async function parseApiErrorBody(res: Response): Promise<string> {
   if (res.status === 401) {
     try {
@@ -78,4 +84,26 @@ export async function createAssignment(body: { title: string; dueDate: string; c
     throw new Error((err as { error?: string }).error || `Failed to create: ${res.status}`);
   }
   return res.json();
+}
+
+export async function upsertUserProfile(body: UserProfilePayload) {
+  const base = getBaseUrl();
+  if (!base) return { skipped: true };
+
+  const res = await fetch(`${base}/assignments/user`, {
+    method: 'POST',
+    headers: await getAuthHeaders(),
+    body: JSON.stringify({
+      userID: body.userId,
+      email: body.email,
+      name: body.name || '',
+    }),
+  });
+
+  if (!res.ok && res.status !== 409) {
+    const err = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error((err as { error?: string }).error || `Failed to sync user profile: ${res.status}`);
+  }
+
+  return res.json().catch(() => ({}));
 }
