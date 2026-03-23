@@ -14,13 +14,15 @@ import { AlertCircle, Loader2, Target, Mail, Lock } from 'lucide-react';
 function VerifyForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, loading: authLoading, confirmSignup, login, error, clearError } = useAuth();
+  const { user, loading: authLoading, confirmSignup, resendVerificationCode, login, error, clearError } = useAuth();
 
   const emailFromUrl = searchParams.get('email') ?? '';
   const [email, setEmail] = React.useState('');
   const [code, setCode] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [submitting, setSubmitting] = React.useState(false);
+  const [resending, setResending] = React.useState(false);
+  const [resendMessage, setResendMessage] = React.useState<string | null>(null);
 
   // Pre-fill email from URL when present (e.g. /verify?email=user@example.com)
   React.useEffect(() => {
@@ -44,6 +46,22 @@ function VerifyForm() {
       router.replace('/dashboard');
     } catch {
       setSubmitting(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    const normalizedEmail = email.trim();
+    if (!normalizedEmail) return;
+    clearError();
+    setResendMessage(null);
+    setResending(true);
+    try {
+      await resendVerificationCode(normalizedEmail);
+      setResendMessage(`A new verification code was sent to ${normalizedEmail}.`);
+    } catch {
+      // error is handled in auth context
+    } finally {
+      setResending(false);
     }
   };
 
@@ -118,6 +136,27 @@ function VerifyForm() {
               />
               <p className="text-xs text-slate-500">Check your inbox for the 6-digit code from DeadlineSync.</p>
             </div>
+            {resendMessage && (
+              <Alert className="bg-emerald-50 border-emerald-200">
+                <AlertDescription className="text-emerald-800">{resendMessage}</AlertDescription>
+              </Alert>
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={handleResendCode}
+              disabled={submitting || resending || !email.trim()}
+            >
+              {resending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                'Resend verification code'
+              )}
+            </Button>
 
             <div className="space-y-2">
               <Label htmlFor="verify-password" className="text-slate-600">Password</Label>

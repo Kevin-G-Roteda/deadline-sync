@@ -13,7 +13,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { CheckCircle2, AlertCircle, Loader2, Target, Mail, User, Lock } from 'lucide-react';
 
 function AuthForm() {
-  const { login, signup, confirmSignup, error, loading, clearError } = useAuth();
+  const { login, signup, confirmSignup, resendVerificationCode, error, loading, clearError } = useAuth();
   const [mode, setMode] = useState<'login' | 'signup' | 'confirm'>('login');
   const [formData, setFormData] = useState({ 
     email: '', 
@@ -21,6 +21,8 @@ function AuthForm() {
     name: '', 
     confirmationCode: '' 
   });
+  const [resending, setResending] = useState(false);
+  const [resendMessage, setResendMessage] = useState<string | null>(null);
 
   React.useEffect(() => {
     if (error && (error.includes('verify your email') || error.includes('User is not confirmed') || error.includes('not confirmed'))) {
@@ -61,6 +63,21 @@ function AuthForm() {
       router.replace('/dashboard');
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const handleResendCode = async () => {
+    const email = formData.email.trim();
+    if (!email) return;
+    setResendMessage(null);
+    try {
+      setResending(true);
+      await resendVerificationCode(email);
+      setResendMessage(`A new verification code was sent to ${email}.`);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setResending(false);
     }
   };
 
@@ -268,6 +285,27 @@ function AuthForm() {
                   maxLength={6}
                 />
               </div>
+              {resendMessage && (
+                <Alert className="bg-emerald-50 border-emerald-200">
+                  <AlertDescription className="text-emerald-800">{resendMessage}</AlertDescription>
+                </Alert>
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={handleResendCode}
+                disabled={loading || resending || !formData.email.trim()}
+              >
+                {resending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  'Resend verification code'
+                )}
+              </Button>
               <Button type="submit" className="w-full h-11 rounded-lg bg-teal-600 hover:bg-teal-700 text-white font-medium" disabled={loading}>
                 {loading ? (
                   <>

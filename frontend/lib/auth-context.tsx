@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Amplify } from 'aws-amplify';
-import { signIn, signUp, signOut, confirmSignUp, getCurrentUser } from 'aws-amplify/auth';
+import { signIn, signUp, signOut, confirmSignUp, getCurrentUser, resendSignUpCode } from 'aws-amplify/auth';
 import { amplifyConfig } from './amplify-config';
 import { upsertUserProfile } from './assignments-api';
 
@@ -36,6 +36,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string, name: string) => Promise<void>;
   confirmSignup: (email: string, code: string) => Promise<void>;
+  resendVerificationCode: (email: string) => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
 }
@@ -167,6 +168,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const resendVerificationCode = async (email: string) => {
+    try {
+      setLoading(true);
+      setError(null);
+      await resendSignUpCode({ username: email });
+    } catch (err: any) {
+      const { type: errType, message: errMsg } = parseCognitoError(err);
+      const errorMessage = errType === 'LimitExceededException'
+        ? 'Too many attempts. Please wait a minute before trying again.'
+        : errMsg || 'Failed to resend verification code';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const logout = async () => {
     try {
       setLoading(true);
@@ -190,6 +208,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     login,
     signup,
     confirmSignup,
+    resendVerificationCode,
     logout,
     clearError,
   };

@@ -11,7 +11,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { CheckCircle2, AlertCircle, Loader2, Target, Mail, LogOut } from 'lucide-react';
 
 function AuthForm() {
-  const { login, signup, confirmSignup, error, loading } = useAuth();
+  const { login, signup, confirmSignup, resendVerificationCode, error, loading } = useAuth();
   const [mode, setMode] = useState<'login' | 'signup' | 'confirm'>('login');
   const [formData, setFormData] = useState({ 
     email: '', 
@@ -19,6 +19,8 @@ function AuthForm() {
     name: '', 
     confirmationCode: '' 
   });
+  const [resending, setResending] = useState(false);
+  const [resendMessage, setResendMessage] = useState<string | null>(null);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,6 +48,21 @@ function AuthForm() {
       await login(formData.email, formData.password);
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const handleResendCode = async () => {
+    const email = formData.email.trim();
+    if (!email) return;
+    setResendMessage(null);
+    try {
+      setResending(true);
+      await resendVerificationCode(email);
+      setResendMessage(`A new verification code was sent to ${email}.`);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setResending(false);
     }
   };
 
@@ -207,6 +224,27 @@ function AuthForm() {
                   maxLength={6}
                 />
               </div>
+              {resendMessage && (
+                <Alert className="bg-emerald-50 border-emerald-200">
+                  <AlertDescription className="text-emerald-800">{resendMessage}</AlertDescription>
+                </Alert>
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={handleResendCode}
+                disabled={loading || resending || !formData.email.trim()}
+              >
+                {resending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  'Resend verification code'
+                )}
+              </Button>
               <Button type="submit" className="w-full bg-teal-600 hover:bg-teal-700" disabled={loading}>
                 {loading ? (
                   <>
