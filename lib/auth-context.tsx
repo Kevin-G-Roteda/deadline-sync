@@ -42,6 +42,23 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function getSignInStepMessage(step?: string) {
+  switch (step) {
+    case 'CONFIRM_SIGN_UP':
+      return 'Please verify your email first.';
+    case 'CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED':
+      return 'A new password is required before you can sign in.';
+    case 'CONFIRM_SIGN_IN_WITH_SMS_CODE':
+    case 'CONFIRM_SIGN_IN_WITH_EMAIL_CODE':
+    case 'CONFIRM_SIGN_IN_WITH_TOTP_CODE':
+      return 'Additional sign-in verification is required for this account.';
+    case 'RESET_PASSWORD':
+      return 'Password reset is required before you can sign in.';
+    default:
+      return 'Sign-in is not complete yet. Please complete the next authentication step.';
+  }
+}
+
 async function syncUserProfile(user: User) {
   if (!user.userId || !user.email) return;
   try {
@@ -84,7 +101,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true);
       setError(null);
-      await signIn({ username: email, password });
+      const signInResult = await signIn({ username: email, password });
+      if (!signInResult.isSignedIn) {
+        const message = getSignInStepMessage(signInResult.nextStep?.signInStep);
+        setError(message);
+        throw new Error(message);
+      }
       await new Promise((r) => setTimeout(r, 0));
       await checkUser();
     } catch (err: any) {
