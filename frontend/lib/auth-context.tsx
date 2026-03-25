@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Amplify } from 'aws-amplify';
-import { signIn, signUp, signOut, confirmSignUp, getCurrentUser, resendSignUpCode } from 'aws-amplify/auth';
+import { signIn, signUp, signOut, confirmSignUp, getCurrentUser, resendSignUpCode, fetchUserAttributes } from 'aws-amplify/auth';
 import { amplifyConfig } from './amplify-config';
 import { upsertUserProfile } from './assignments-api';
 
@@ -83,10 +83,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true);
       const currentUser = await getCurrentUser();
+      let email =
+        currentUser.signInDetails?.loginId?.trim() ||
+        (currentUser.username?.includes('@') ? currentUser.username : '') ||
+        '';
+      let name: string | undefined =
+        currentUser.username?.includes('@') ? undefined : currentUser.username;
+
+      try {
+        const attrs = await fetchUserAttributes();
+        if (attrs?.email) email = attrs.email;
+        if (attrs?.name) name = attrs.name;
+      } catch {
+        // Attributes unavailable; keep values from getCurrentUser
+      }
+
       const resolvedUser = {
         userId: currentUser.userId,
-        email: currentUser.signInDetails?.loginId || currentUser.username || '',
-        name: currentUser.username,
+        email,
+        name: name || undefined,
       };
       setUser(resolvedUser);
       await syncUserProfile(resolvedUser);
@@ -170,7 +185,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const resendVerificationCode = async (email: string) => {
     try {
-      setLoading(true);
       setError(null);
       await resendSignUpCode({ username: email });
     } catch (err: any) {
@@ -180,8 +194,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         : errMsg || 'Failed to resend verification code';
       setError(errorMessage);
       throw new Error(errorMessage);
-    } finally {
-      setLoading(false);
     }
   };
 

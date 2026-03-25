@@ -7,8 +7,25 @@ import { useAuth } from '@/lib/auth-context';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { CheckCircle2, AlertCircle, Loader2, Target, ClipboardList, Calendar, LogOut, Cloud, Database, Link2 } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Loader2, Target, ClipboardList, Calendar, LogOut, Cloud, Database, Link2, ExternalLink } from 'lucide-react';
 import { listAssignments, type Assignment } from '../../lib/assignments-api';
+
+function formatDueDate(iso: string) {
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso;
+    return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(d);
+  } catch {
+    return iso;
+  }
+}
+
+function platformLabel(platform?: string) {
+  if (!platform || platform === 'manual') return 'Manual';
+  const p = platform.toLowerCase();
+  if (p === 'canvas') return 'Canvas';
+  return platform.charAt(0).toUpperCase() + platform.slice(1);
+}
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -131,7 +148,7 @@ export default function DashboardPage() {
               Assignments
             </CardTitle>
             <CardDescription>
-              Your assignments from the API (set NEXT_PUBLIC_API_URL and Cognito authorizer to load data).
+              Deadlines and links from your API. The app sends your Cognito ID token so assignments are scoped to your account (set <code className="text-xs bg-slate-100 px-1 rounded">NEXT_PUBLIC_API_URL</code> on Vercel).
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -147,22 +164,86 @@ export default function DashboardPage() {
               </Alert>
             )}
             {!assignmentsLoading && !assignmentsError && assignments.length === 0 && (
-              <p className="text-slate-600 py-4">No assignments yet.</p>
+              <p className="text-slate-600 py-4">
+                No assignments yet. Imported Canvas items and manual tasks will show here with due dates and platform links.
+              </p>
             )}
             {!assignmentsLoading && !assignmentsError && assignments.length > 0 && (
-              <ul className="space-y-3">
-                {assignments.map((a) => (
-                  <li key={a.assignmentId} className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-3">
-                    <Calendar className="h-4 w-4 text-slate-400 shrink-0" />
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium text-slate-900">{a.title}</p>
-                      <p className="text-sm text-slate-500">
-                        {a.courseId} · Due {a.dueDate}
+              <>
+                <div className="hidden md:block overflow-x-auto rounded-lg border border-slate-200">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+                        <th className="p-3 font-medium">Assignment</th>
+                        <th className="p-3 font-medium whitespace-nowrap">Due</th>
+                        <th className="p-3 font-medium">Platform</th>
+                        <th className="p-3 font-medium w-[1%]">Link</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {assignments.map((a) => (
+                        <tr key={a.assignmentId} className="border-b border-slate-100 last:border-0 bg-white">
+                          <td className="p-3 align-top">
+                            <p className="font-medium text-slate-900">{a.title}</p>
+                            <p className="text-slate-500 text-xs mt-0.5">
+                              {a.courseName || a.courseId}
+                              {a.description ? ` · ${a.description.slice(0, 80)}${a.description.length > 80 ? '…' : ''}` : ''}
+                            </p>
+                          </td>
+                          <td className="p-3 align-top whitespace-nowrap text-slate-700">
+                            <span className="inline-flex items-center gap-1.5">
+                              <Calendar className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                              {formatDueDate(a.dueDate)}
+                            </span>
+                          </td>
+                          <td className="p-3 align-top">
+                            <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">
+                              {platformLabel(a.platform)}
+                            </span>
+                          </td>
+                          <td className="p-3 align-top">
+                            {a.sourceUrl ? (
+                              <Button variant="outline" size="sm" className="gap-1.5 shrink-0" asChild>
+                                <a href={a.sourceUrl} target="_blank" rel="noopener noreferrer">
+                                  <ExternalLink className="h-3.5 w-3.5" />
+                                  Open
+                                </a>
+                              </Button>
+                            ) : (
+                              <span className="text-slate-400 text-xs">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <ul className="md:hidden space-y-3">
+                  {assignments.map((a) => (
+                    <li key={a.assignmentId} className="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="font-medium text-slate-900">{a.title}</p>
+                        <span className="inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 shrink-0">
+                          {platformLabel(a.platform)}
+                        </span>
+                      </div>
+                      <p className="text-sm text-slate-600">{a.courseName || a.courseId}</p>
+                      <p className="text-sm text-slate-700 inline-flex items-center gap-1.5">
+                        <Calendar className="h-4 w-4 text-slate-400" />
+                        {formatDueDate(a.dueDate)}
                       </p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+                      {a.sourceUrl ? (
+                        <Button variant="outline" size="sm" className="w-full gap-2 mt-1" asChild>
+                          <a href={a.sourceUrl} target="_blank" rel="noopener noreferrer">
+                            <ExternalLink className="h-4 w-4" />
+                            Open in {platformLabel(a.platform)}
+                          </a>
+                        </Button>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              </>
             )}
           </CardContent>
         </Card>

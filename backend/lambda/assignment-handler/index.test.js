@@ -158,4 +158,73 @@ describe('assignment-handler', () => {
       expect(res.statusCode).toBe(405);
     });
   });
+
+  describe('POST /assignments/user', () => {
+    it('creates user when path includes API Gateway stage', async () => {
+      mockSend.mockResolvedValueOnce({ Item: null }).mockResolvedValueOnce({});
+      const res = await handler({
+        ...baseEvent,
+        httpMethod: 'POST',
+        path: '/prod/assignments/user',
+        body: JSON.stringify({ email: 'stage@test.com', name: 'Stage User' }),
+      });
+      expect(res.statusCode).toBe(201);
+      const body = JSON.parse(res.body);
+      expect(body.message).toContain('created');
+    });
+
+    it('updates user when record already exists', async () => {
+      mockSend
+        .mockResolvedValueOnce({
+          Item: { userID: 'user-123', email: 'old@test.com', name: 'Old' },
+        })
+        .mockResolvedValueOnce({});
+      const res = await handler({
+        ...baseEvent,
+        httpMethod: 'POST',
+        path: '/prod/assignments/user',
+        body: JSON.stringify({ email: 'new@test.com', name: 'New' }),
+      });
+      expect(res.statusCode).toBe(200);
+      expect(JSON.parse(res.body).message).toContain('updated');
+    });
+
+    it('uses Cognito sub from Bearer ID token when authorizer is absent', async () => {
+      const payload = Buffer.from(
+        JSON.stringify({ sub: 'jwt-sub-xyz', email: 'jwt@test.com' })
+      ).toString('base64url');
+      const token = `e.${payload}.s`;
+      mockSend.mockResolvedValueOnce({ Item: null }).mockResolvedValueOnce({});
+      const res = await handler({
+        ...baseEvent,
+        httpMethod: 'POST',
+        path: '/prod/assignments/user',
+        requestContext: {},
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ name: 'From JWT' }),
+      });
+      expect(res.statusCode).toBe(201);
+    });
+  });
+
+  describe('GET list with Bearer token', () => {
+    it('uses sub from Bearer token for query when no authorizer', async () => {
+      const payload = Buffer.from(JSON.stringify({ sub: 'list-user-99', email: 'l@test.com' })).toString(
+        'base64url'
+      );
+      const token = `h.${payload}.x`;
+      mockSend.mockResolvedValue({ Items: [], Count: 0 });
+      const res = await handler({
+        ...baseEvent,
+        httpMethod: 'GET',
+        requestContext: {},
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      expect(res.statusCode).toBe(200);
+      expect(mockSend).toHaveBeenCalled();
+      const queryCall = mockSend.mock.calls.find((c) => c[0] && c[0]._query);
+      expect(queryCall).toBeDefined();
+      expect(queryCall[0]._query.ExpressionAttributeValues[':userId']).toBe('list-user-99');
+    });
+  });
 });

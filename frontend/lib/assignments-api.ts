@@ -19,7 +19,10 @@ export interface Assignment {
   userId: string;
   title: string;
   courseId: string;
+  courseName?: string;
   dueDate: string;
+  platform?: string;
+  sourceUrl?: string;
   priority?: string;
   status?: string;
   completed?: boolean;
@@ -67,7 +70,16 @@ export async function listAssignments(): Promise<{ assignments: Assignment[]; co
   }
 }
 
-export async function createAssignment(body: { title: string; dueDate: string; courseId: string; description?: string; priority?: string }) {
+export async function createAssignment(body: {
+  title: string;
+  dueDate: string;
+  courseId: string;
+  courseName?: string;
+  description?: string;
+  priority?: string;
+  platform?: string;
+  sourceUrl?: string;
+}) {
   const base = getBaseUrl();
   if (!base) throw new Error('NEXT_PUBLIC_API_URL is not set');
   const res = await fetch(`${base}/assignments`, {

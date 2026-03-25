@@ -30,6 +30,65 @@ const headers = {
     "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS"
 };
 
+function getAuthorizationHeader(event) {
+    const h = event.headers || {};
+    return (
+        h.Authorization ||
+        h.authorization ||
+        h.AUTHORIZATION ||
+        ""
+    );
+}
+
+/** Decode Cognito ID token payload when API Gateway has no authorizer (not cryptographically verified). */
+function decodeIdTokenClaims(authHeader) {
+    if (!authHeader || typeof authHeader !== "string") return null;
+    const trimmed = authHeader.trim();
+    if (!trimmed.toLowerCase().startsWith("bearer ")) return null;
+    const token = trimmed.slice(7).trim();
+    const parts = token.split(".");
+    if (parts.length < 2) return null;
+    try {
+        const json = Buffer.from(parts[1], "base64url").toString("utf8");
+        const payload = JSON.parse(json);
+        if (!payload || !payload.sub) return null;
+        return {
+            sub: payload.sub,
+            email: payload.email || payload["cognito:username"] || ""
+        };
+    } catch {
+        return null;
+    }
+}
+
+function resolveTokenClaims(event) {
+    const claims = event.requestContext?.authorizer?.claims;
+    if (claims?.sub) {
+        return {
+            sub: claims.sub,
+            email: claims.email || ""
+        };
+    }
+    return decodeIdTokenClaims(getAuthorizationHeader(event));
+}
+
+function resolveUserId(event) {
+    return resolveTokenClaims(event)?.sub || "demo-user";
+}
+
+/** REST APIs include the stage in path (e.g. /prod/assignments/user). */
+function isUserProfilePost(event) {
+    if (event.httpMethod !== "POST") return false;
+    const path = event.path || "";
+    const resource = event.resource || "";
+    return (
+        path === "/assignments/user" ||
+        path.endsWith("/assignments/user") ||
+        resource === "/assignments/user" ||
+        resource.endsWith("/assignments/user")
+    );
+}
+
 exports.handler = async (event) => {
     console.log("Event:", JSON.stringify(event, null, 2));
 
@@ -45,15 +104,9 @@ exports.handler = async (event) => {
             };
         }
 
-        const userId =
-            event.requestContext?.authorizer?.claims?.sub ||
-            "demo-user";
+        const userId = resolveUserId(event);
 
-        // ✅ EXACT ROUTE MATCH FOR USER CREATION
-        if (
-            event.httpMethod === "POST" &&
-            event.path === "/assignments/user"
-        ) {
+        if (isUserProfilePost(event)) {
             return await handleUserCreate(event);
         }
 
@@ -160,6 +213,11 @@ async function handleCreate(event, userId) {
         };
     }
 
+    const platform =
+        body.platform || body.sourcePlatform || "manual";
+    const sourceUrl = body.sourceUrl || body.assignmentUrl || body.htmlUrl || "";
+    const courseName = body.courseName || "";
+
     const assignment = {
         assignmentId: `assign_${Date.now()}_${Math.random()
             .toString(36)
@@ -167,7 +225,10 @@ async function handleCreate(event, userId) {
         userId,
         title: body.title,
         courseId: body.courseId,
+        courseName,
         dueDate: body.dueDate,
+        platform,
+        sourceUrl,
         priority: body.priority || "medium",
         status: body.status || "not_started",
         completed: false,
@@ -309,9 +370,13 @@ async function handleDelete(event, userId) {
 
 async function handleUserCreate(event) {
     const body = JSON.parse(event.body || "{}");
-    const authUserId = event.requestContext?.authorizer?.claims?.sub;
-    const userID = body.userID || body.userId || authUserId;
-    const email = body.email || event.requestContext?.authorizer?.claims?.email;
+    const tokenClaims = resolveTokenClaims(event);
+    const bodyUserId = body.userID || body.userId;
+    const userID = tokenClaims?.sub || bodyUserId;
+    const email =
+        (body.email && String(body.email).trim()) ||
+        tokenClaims?.email ||
+        "";
 
     if (!userID || !email) {
         return {
