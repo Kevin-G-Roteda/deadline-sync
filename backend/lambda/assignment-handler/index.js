@@ -199,6 +199,19 @@ async function handleGet(event, userId) {
     }
 }
 
+function resolveAssignmentId(body) {
+    const raw = body.assignmentId;
+    if (typeof raw === "string") {
+        const id = raw.trim();
+        if (/^canvas_\d+_\d+$/.test(id)) {
+            return id;
+        }
+    }
+    return `assign_${Date.now()}_${Math.random()
+        .toString(36)
+        .substring(2, 9)}`;
+}
+
 async function handleCreate(event, userId) {
     const body = JSON.parse(event.body || "{}");
 
@@ -213,15 +226,28 @@ async function handleCreate(event, userId) {
         };
     }
 
+    const resolvedAssignmentId = resolveAssignmentId(body);
+
+    let createdAt = new Date().toISOString();
+    if (typeof body.assignmentId === "string" && /^canvas_\d+_\d+$/.test(body.assignmentId.trim())) {
+        const existingCreate = await docClient.send(
+            new GetCommand({
+                TableName: TABLE_NAME,
+                Key: { assignmentId: resolvedAssignmentId, userId }
+            })
+        );
+        if (existingCreate.Item?.createdAt) {
+            createdAt = existingCreate.Item.createdAt;
+        }
+    }
+
     const platform =
         body.platform || body.sourcePlatform || "manual";
     const sourceUrl = body.sourceUrl || body.assignmentUrl || body.htmlUrl || "";
     const courseName = body.courseName || "";
 
     const assignment = {
-        assignmentId: `assign_${Date.now()}_${Math.random()
-            .toString(36)
-            .substring(2, 9)}`,
+        assignmentId: resolvedAssignmentId,
         userId,
         title: body.title,
         courseId: body.courseId,
@@ -237,7 +263,7 @@ async function handleCreate(event, userId) {
         description: body.description || "",
         grade: null,
         maxPoints: body.maxPoints || 100,
-        createdAt: new Date().toISOString(),
+        createdAt,
         updatedAt: new Date().toISOString()
     };
 

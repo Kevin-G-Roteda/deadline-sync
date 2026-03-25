@@ -71,6 +71,7 @@ export async function listAssignments(): Promise<{ assignments: Assignment[]; co
 }
 
 export async function createAssignment(body: {
+  assignmentId?: string;
   title: string;
   dueDate: string;
   courseId: string;
@@ -118,4 +119,30 @@ export async function upsertUserProfile(body: UserProfilePayload) {
   }
 
   return res.json().catch(() => ({}));
+}
+
+export type CanvasImportResult = {
+  imported: number;
+  skippedNoDueDate?: number;
+  success: boolean;
+  message: string;
+  courseCount?: number;
+  warnings?: string[];
+};
+
+export async function importFromCanvas(): Promise<CanvasImportResult> {
+  const session = await fetchAuthSession();
+  const token = session.tokens?.idToken?.toString();
+  if (!token) throw new Error('Sign in required');
+
+  const res = await fetch('/api/canvas/import', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  const data = (await res.json().catch(() => ({}))) as CanvasImportResult & { error?: string };
+  if (!res.ok) {
+    throw new Error(data.error || `Canvas import failed (${res.status})`);
+  }
+  return data as CanvasImportResult;
 }

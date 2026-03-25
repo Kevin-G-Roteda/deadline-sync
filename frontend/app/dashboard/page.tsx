@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { CheckCircle2, AlertCircle, Loader2, Target, ClipboardList, Calendar, LogOut, Cloud, Database, Link2, ExternalLink } from 'lucide-react';
-import { listAssignments, type Assignment } from '../../lib/assignments-api';
+import { importFromCanvas, listAssignments, type Assignment } from '../../lib/assignments-api';
 
 function formatDueDate(iso: string) {
   try {
@@ -33,6 +33,9 @@ export default function DashboardPage() {
   const [assignments, setAssignments] = React.useState<Assignment[]>([]);
   const [assignmentsLoading, setAssignmentsLoading] = React.useState(true);
   const [assignmentsError, setAssignmentsError] = React.useState<string | null>(null);
+  const [canvasBusy, setCanvasBusy] = React.useState(false);
+  const [canvasNotice, setCanvasNotice] = React.useState<string | null>(null);
+  const [canvasError, setCanvasError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (!user) return;
@@ -62,6 +65,26 @@ export default function DashboardPage() {
   const handleLogout = async () => {
     await logout();
     router.replace('/');
+  };
+
+  const handleCanvasImport = async () => {
+    setCanvasError(null);
+    setCanvasNotice(null);
+    setCanvasBusy(true);
+    try {
+      const result = await importFromCanvas();
+      const extra =
+        result.skippedNoDueDate && result.skippedNoDueDate > 0
+          ? ` (${result.skippedNoDueDate} Canvas item(s) had no due date and were skipped.)`
+          : '';
+      setCanvasNotice(`${result.message}${extra}`);
+      const data = await listAssignments();
+      setAssignments(data.assignments || []);
+    } catch (e) {
+      setCanvasError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setCanvasBusy(false);
+    }
   };
 
   if (loading || !user) {
@@ -121,6 +144,51 @@ export default function DashboardPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Link2 className="h-5 w-5 text-teal-600" />
+              Canvas LMS
+            </CardTitle>
+            <CardDescription>
+              Import assignments from Canvas (courses you are enrolled in). Uses your institution domain and a server-side token configured on Vercel — not stored in the browser.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {canvasError && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{canvasError}</AlertDescription>
+              </Alert>
+            )}
+            {canvasNotice && (
+              <Alert className="border-emerald-200 bg-emerald-50">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                <AlertDescription className="text-emerald-900">{canvasNotice}</AlertDescription>
+              </Alert>
+            )}
+            <Button
+              type="button"
+              className="bg-teal-600 hover:bg-teal-700 text-white"
+              onClick={handleCanvasImport}
+              disabled={canvasBusy}
+            >
+              {canvasBusy ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Importing from Canvas…
+                </>
+              ) : (
+                'Import assignments from Canvas'
+              )}
+            </Button>
+            <p className="text-xs text-slate-500">
+              Requires <code className="bg-slate-100 px-1 rounded">CANVAS_ACCESS_TOKEN</code> and{' '}
+              <code className="bg-slate-100 px-1 rounded">CANVAS_DOMAIN</code> in Vercel environment variables.
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Link2 className="h-5 w-5 text-teal-600" />
               Integrations Roadmap
             </CardTitle>
             <CardDescription>Scaffold for upcoming capstone integrations.</CardDescription>
@@ -128,7 +196,7 @@ export default function DashboardPage() {
           <CardContent className="grid gap-3 sm:grid-cols-3">
             <div className="rounded-lg border border-slate-200 bg-white p-4">
               <p className="font-medium text-slate-900 flex items-center gap-2"><Link2 className="h-4 w-4 text-slate-500" />Canvas API</p>
-              <p className="text-sm text-slate-600 mt-1">Add a secure Canvas token input and run import/sync jobs for deadlines.</p>
+              <p className="text-sm text-slate-600 mt-1">Personal access token lives in Vercel as CANVAS_ACCESS_TOKEN; import runs on the server.</p>
             </div>
             <div className="rounded-lg border border-slate-200 bg-white p-4">
               <p className="font-medium text-slate-900 flex items-center gap-2"><Cloud className="h-4 w-4 text-slate-500" />S3 Storage</p>

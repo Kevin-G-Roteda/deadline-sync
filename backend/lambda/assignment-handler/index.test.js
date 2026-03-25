@@ -104,6 +104,27 @@ describe('assignment-handler', () => {
       expect(body.assignment.title).toBe('Homework');
       expect(body.assignment.userId).toBe('user-123');
     });
+
+    it('accepts stable canvas_* assignmentId for idempotent imports', async () => {
+      mockSend
+        .mockResolvedValueOnce({ Item: null })
+        .mockResolvedValueOnce({});
+      const res = await handler({
+        ...baseEvent,
+        httpMethod: 'POST',
+        body: JSON.stringify({
+          assignmentId: 'canvas_101_5001',
+          title: 'Module 1 Essay',
+          dueDate: '2025-12-15T23:59:59.000Z',
+          courseId: '101',
+          courseName: 'Intro',
+          platform: 'canvas',
+        }),
+      });
+      expect(res.statusCode).toBe(201);
+      const body = JSON.parse(res.body);
+      expect(body.assignment.assignmentId).toBe('canvas_101_5001');
+    });
   });
 
   describe('PUT update', () => {
