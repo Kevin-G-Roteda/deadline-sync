@@ -423,6 +423,11 @@ export default function DashboardPage() {
 
   const assignmentBuckets = React.useMemo(() => getAssignmentBuckets(assignments), [assignments]);
 
+  const fullName = (user.name || '').trim();
+  const firstNameFromName = fullName.split(' ')[0] || '';
+  const emailPrefix = (user.email || '').split('@')[0] || '';
+  const firstName = firstNameFromName || emailPrefix || 'User';
+
   if (loading || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
@@ -459,55 +464,23 @@ export default function DashboardPage() {
       </header>
 
       <main className="container mx-auto max-w-4xl p-6 sm:p-8 space-y-6">
-<<<<<<< HEAD
-        {/*
-          Use first name from user.name when available; 
-          otherwise fall back to email prefix (before @).
-        */}
-        {(() => {
-          const fullName = user.name || '';
-          const firstNameFromName = fullName.trim().split(' ')[0] || '';
-          const emailPrefix = (user.email || '').split('@')[0] || '';
-          const firstName = firstNameFromName || emailPrefix || 'User';
-          return (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-2xl">Dashboard</CardTitle>
-                <CardDescription>
-                  {`Welcome To DeadlineSync ${firstName}`}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Alert className="border-teal-200 bg-teal-50">
-                  <CheckCircle2 className="h-4 w-4 text-teal-600" />
-                  <AlertTitle className="text-teal-900">You’re signed in</AlertTitle>
-                  <AlertDescription className="text-teal-700">
-                    Manage your assignments and deadlines below.
-                  </AlertDescription>
-                </Alert>
-              </CardContent>
-            </Card>
-          );
-        })()}
-=======
         <Card className="overflow-hidden border-0 bg-slate-900 text-white shadow-xl">
           <CardHeader>
-            <CardTitle className="text-2xl">Welcome to DeadlineSync</CardTitle>
+            <CardTitle className="text-2xl">Welcome To DeadlineSync</CardTitle>
             <CardDescription className="text-slate-300">
-              Hi {user.name || user.email}, your planner is organized around what needs attention now, what you can start early, and the files tied to your account.
+              Welcome To DeadlineSync {firstName}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Alert className="border-teal-500/30 bg-teal-500/10 text-white">
               <CheckCircle2 className="h-4 w-4 text-teal-300" />
-              <AlertTitle className="text-white">Authenticated and synced</AlertTitle>
+              <AlertTitle className="text-white">You’re signed in</AlertTitle>
               <AlertDescription className="text-slate-200">
-                Your Cognito account is active and the app now attempts to sync your user profile to the `Users` DynamoDB table on login.
+                Your planner is organized around what needs attention now, what you can start early, and the files tied to your account.
               </AlertDescription>
             </Alert>
           </CardContent>
         </Card>
->>>>>>> 8e961181c66c14b3ada6085a3de615a02e9aa9b2
 
         <div className="grid gap-4 md:grid-cols-3">
           <Card className="border-emerald-200 bg-emerald-50/70">
