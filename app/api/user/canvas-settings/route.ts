@@ -2,10 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { GetCommand, PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { docClient, usersTableName } from '@/lib/aws-server';
 import { getAuthenticatedUserFromRequest } from '@/lib/server-auth';
-
-function normalizeDomain(raw?: string) {
-  return (raw || 'mdc.instructure.com').replace(/^https?:\/\//, '').split('/')[0].trim();
-}
+import { normalizeCanvasDomain } from '@/lib/canvas-server';
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,7 +18,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       canvasTokenConfigured: Boolean(canvas.token),
-      canvasDomain: normalizeDomain(canvas.domain),
+      canvasDomain: normalizeCanvasDomain(canvas.domain),
       updatedAt: canvas.updatedAt || result.Item?.updatedAt || null,
     });
   } catch (error) {
@@ -42,10 +39,13 @@ export async function PUT(request: NextRequest) {
     };
 
     const canvasToken = body.canvasToken?.trim();
-    const canvasDomain = normalizeDomain(body.canvasDomain);
+    const canvasDomain = normalizeCanvasDomain(body.canvasDomain);
 
-    if (!canvasToken) {
-      return NextResponse.json({ error: 'Canvas token is required.' }, { status: 400 });
+    if (!canvasToken || !canvasDomain) {
+      return NextResponse.json(
+        { error: 'Both Canvas token and school domain are required.' },
+        { status: 400 }
+      );
     }
 
     const existing = await docClient.send(

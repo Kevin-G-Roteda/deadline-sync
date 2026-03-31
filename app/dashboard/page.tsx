@@ -21,9 +21,11 @@ import {
   Files,
   Sparkles,
   ArrowUpRight,
+  BrainCircuit,
 } from 'lucide-react';
 import {
   createFileUpload,
+  getCanvasRecommendations,
   getCanvasSettings,
   getFileViewUrl,
   importFromCanvas,
@@ -33,6 +35,7 @@ import {
   type Assignment,
   type CanvasSettings,
   type StoredFile,
+  type StudyRecommendation,
 } from '@/lib/assignments-api';
 
 function formatDueDate(iso: string) {
@@ -206,9 +209,13 @@ export default function DashboardPage() {
   const [canvasError, setCanvasError] = React.useState<string | null>(null);
   const [canvasSettings, setCanvasSettings] = React.useState<CanvasSettings | null>(null);
   const [canvasSettingsLoading, setCanvasSettingsLoading] = React.useState(true);
-  const [canvasDomainInput, setCanvasDomainInput] = React.useState('mdc.instructure.com');
+  const [canvasDomainInput, setCanvasDomainInput] = React.useState('');
   const [canvasTokenInput, setCanvasTokenInput] = React.useState('');
   const [canvasSaveBusy, setCanvasSaveBusy] = React.useState(false);
+  const [recommendations, setRecommendations] = React.useState<StudyRecommendation[]>([]);
+  const [recommendationsLoading, setRecommendationsLoading] = React.useState(true);
+  const [recommendationsError, setRecommendationsError] = React.useState<string | null>(null);
+  const [recommendationsWarnings, setRecommendationsWarnings] = React.useState<string[]>([]);
   const [files, setFiles] = React.useState<StoredFile[]>([]);
   const [filesLoading, setFilesLoading] = React.useState(true);
   const [filesError, setFilesError] = React.useState<string | null>(null);
@@ -246,7 +253,7 @@ export default function DashboardPage() {
       .then((settings) => {
         if (cancelled) return;
         setCanvasSettings(settings);
-        setCanvasDomainInput(settings.canvasDomain || 'mdc.instructure.com');
+        setCanvasDomainInput(settings.canvasDomain || '');
       })
       .catch((err) => {
         if (!cancelled) {
@@ -280,6 +287,28 @@ export default function DashboardPage() {
     void refreshFiles();
   }, [user, refreshFiles]);
 
+  const refreshRecommendations = React.useCallback(async () => {
+    setRecommendationsLoading(true);
+    setRecommendationsError(null);
+
+    try {
+      const data = await getCanvasRecommendations();
+      setRecommendations(data.recommendations || []);
+      setRecommendationsWarnings(data.warnings || []);
+    } catch (err) {
+      setRecommendations([]);
+      setRecommendationsWarnings([]);
+      setRecommendationsError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setRecommendationsLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (!user) return;
+    void refreshRecommendations();
+  }, [user, refreshRecommendations]);
+
   React.useEffect(() => {
     if (!loading && !user) {
       router.replace('/');
@@ -304,6 +333,7 @@ export default function DashboardPage() {
       setCanvasNotice(`${result.message}${extra}`);
       const data = await listAssignments();
       setAssignments(data.assignments || []);
+      await refreshRecommendations();
     } catch (e) {
       setCanvasError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -325,6 +355,7 @@ export default function DashboardPage() {
       setCanvasSettings(settings);
       setCanvasTokenInput('');
       setCanvasNotice('Canvas token saved for your account. Future imports will use your personal Canvas connection.');
+      await refreshRecommendations();
     } catch (error) {
       setCanvasError(error instanceof Error ? error.message : String(error));
     } finally {
@@ -593,17 +624,19 @@ export default function DashboardPage() {
                   value={canvasTokenInput}
                   onChange={(event) => setCanvasTokenInput(event.target.value)}
                   placeholder={canvasSettings?.canvasTokenConfigured ? 'Saved already. Paste a new token to replace it.' : 'Paste the student Canvas token'}
+                  required
                 />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-700" htmlFor="canvas-domain">
-                  Canvas Domain
+                  School Canvas Domain
                 </label>
                 <Input
                   id="canvas-domain"
                   value={canvasDomainInput}
                   onChange={(event) => setCanvasDomainInput(event.target.value)}
-                  placeholder="mdc.instructure.com"
+                  placeholder="Examples: mdc.instructure.com, yourschool.instructure.com"
+                  required
                 />
               </div>
               <Button type="submit" className="bg-slate-900 text-white hover:bg-slate-800" disabled={canvasSaveBusy}>
@@ -625,7 +658,7 @@ export default function DashboardPage() {
                     ? 'Checking saved token...'
                     : canvasSettings?.canvasTokenConfigured
                     ? `Personal token saved for ${canvasSettings.canvasDomain}.`
-                    : 'No personal token saved yet.'}
+                    : 'No personal Canvas domain and token saved yet.'}
                 </p>
                 {canvasSettings?.updatedAt ? (
                   <p className="text-xs text-slate-500">Last updated {formatShortDate(canvasSettings.updatedAt)}</p>
@@ -648,8 +681,92 @@ export default function DashboardPage() {
               </Button>
             </div>
             <p className="text-xs text-slate-500">
-              Keep <code className="rounded bg-slate-100 px-1">NEXT_PUBLIC_API_URL</code> on Vercel for assignments. The per-student Canvas token is now stored in the user profile instead of a single shared environment variable.
+              Students must enter both their school Canvas domain and their own Canvas token. Keep <code className="rounded bg-slate-100 px-1">NEXT_PUBLIC_API_URL</code> on Vercel for assignment sync.
             </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BrainCircuit className="h-5 w-5 text-teal-600" />
+              What To Work On First
+            </CardTitle>
+            <CardDescription>
+              Separate from the assignment display, these recommendations use Canvas grading weight, points possible, and due date urgency to rank the work that should probably come first.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {recommendationsError && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{recommendationsError}</AlertDescription>
+              </Alert>
+            )}
+            {recommendationsWarnings.length > 0 && (
+              <Alert className="border-amber-200 bg-amber-50">
+                <AlertDescription className="text-amber-900">
+                  Some Canvas courses could not be analyzed completely, but the available recommendations are still shown.
+                </AlertDescription>
+              </Alert>
+            )}
+            {recommendationsLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-teal-600" />
+              </div>
+            ) : recommendations.length === 0 ? (
+              <SectionEmptyState
+                title="No study recommendations yet"
+                description="Save your Canvas domain and token, then import or refresh so DeadlineSync can score your upcoming work."
+              />
+            ) : (
+              <div className="space-y-3">
+                {recommendations.map((item, index) => (
+                  <div key={item.assignmentId} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-full bg-slate-900 px-2 text-xs font-semibold text-white">
+                            #{index + 1}
+                          </span>
+                          <p className="text-base font-semibold text-slate-900">{item.title}</p>
+                        </div>
+                        <p className="text-sm text-slate-600">
+                          {item.courseName} · {item.assignmentGroup}
+                          {item.assignmentGroupWeight > 0 ? ` · ${item.assignmentGroupWeight}% weight` : ''}
+                          {item.pointsPossible > 0 ? ` · ${item.pointsPossible} pts` : ''}
+                        </p>
+                        <p className="text-sm leading-6 text-slate-500">{item.recommendationReason}</p>
+                      </div>
+                      <div className="flex flex-col gap-2 lg:items-end">
+                        <span className="rounded-full bg-teal-50 px-3 py-1 text-sm font-medium text-teal-700">
+                          Priority {item.priorityScore}
+                        </span>
+                        <p className="text-sm text-slate-600">
+                          {item.daysRemaining <= 0
+                            ? 'Due now / overdue'
+                            : item.daysRemaining === 1
+                            ? 'Due in 1 day'
+                            : `Due in ${item.daysRemaining} days`}
+                        </p>
+                        <p className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
+                          <Calendar className="h-4 w-4 text-slate-400" />
+                          {formatDueDate(item.dueDate)}
+                        </p>
+                        {item.sourceUrl ? (
+                          <Button variant="outline" size="sm" className="gap-2" asChild>
+                            <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer">
+                              <ExternalLink className="h-4 w-4" />
+                              Open in Canvas
+                            </a>
+                          </Button>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 

@@ -45,6 +45,21 @@ export interface CanvasSettings {
   updatedAt?: string | null;
 }
 
+export interface StudyRecommendation {
+  assignmentId: string;
+  title: string;
+  courseId: string;
+  courseName: string;
+  dueDate: string;
+  sourceUrl: string;
+  pointsPossible: number;
+  assignmentGroup: string;
+  assignmentGroupWeight: number;
+  daysRemaining: number;
+  priorityScore: number;
+  recommendationReason: string;
+}
+
 export interface StoredFile {
   key: string;
   name: string;
@@ -191,6 +206,18 @@ export async function saveCanvasSettings(body: {
   });
 
   return getJsonOrThrow<CanvasSettings>(res, 'Failed to save Canvas settings');
+}
+
+export async function getCanvasRecommendations(): Promise<{
+  recommendations: StudyRecommendation[];
+  generatedAt: string;
+  warnings?: string[];
+}> {
+  const res = await fetch('/api/canvas/recommendations', {
+    headers: await getAuthHeaders(),
+  });
+
+  return getJsonOrThrow(res, 'Failed to load study recommendations');
 }
 
 export async function listUserFiles(): Promise<{ files: StoredFile[] }> {
