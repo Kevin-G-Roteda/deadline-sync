@@ -1,12 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-type CanvasCourse = {
-  id: number;
-  name?: string;
-  course_code?: string;
-  workflow_state?: string;
-  access_restricted_by_date?: boolean;
-};
+import { CanvasCourse, fetchAllCanvasPages, getCanvasConfigForRequest } from '@/lib/canvas-server';
 
 type CanvasAssignment = {
   id: number;
@@ -17,67 +10,16 @@ type CanvasAssignment = {
   published?: boolean;
 };
 
-function normalizeDomain(raw: string) {
-  return raw.replace(/^https?:\/\//, '').split('/')[0].trim();
-}
-
-function parseNextUrl(linkHeader: string | null): string | null {
-  if (!linkHeader) return null;
-  for (const part of linkHeader.split(',')) {
-    const m = part.match(/<([^>]+)>;\s*rel="next"/);
-    if (m) return m[1];
-  }
-  return null;
-}
-
-async function canvasFetchJson(url: string, token: string): Promise<{ data: unknown; response: Response }> {
-  const response = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: 'application/json',
-    },
-  });
-  if (response.status === 401 || response.status === 403) {
-    throw new Error('INVALID_CANVAS_TOKEN');
-  }
-  if (!response.ok) {
-    const t = await response.text();
-    throw new Error(`Canvas HTTP ${response.status}: ${t.slice(0, 300)}`);
-  }
-  const data = await response.json();
-  return { data, response };
-}
-
-async function fetchAllPages<T>(startUrl: string, token: string): Promise<T[]> {
-  const out: T[] = [];
-  let url: string | null = startUrl;
-  while (url) {
-    const { data, response } = await canvasFetchJson(url, token);
-    if (Array.isArray(data)) {
-      out.push(...(data as T[]));
-    }
-    url = parseNextUrl(response.headers.get('link'));
-  }
-  return out;
-}
-
 export async function POST(req: NextRequest) {
   try {
     const apiBase = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '');
-    const canvasToken = process.env.CANVAS_ACCESS_TOKEN;
-    const domain = normalizeDomain(process.env.CANVAS_DOMAIN || 'mdc.instructure.com');
+    const auth = req.headers.get('authorization');
+    const { token: canvasToken, domain } = await getCanvasConfigForRequest(req);
 
-    if (!canvasToken) {
-      return NextResponse.json(
-        { error: 'Canvas is not configured (missing CANVAS_ACCESS_TOKEN).' },
-        { status: 503 }
-      );
-    }
     if (!apiBase) {
       return NextResponse.json({ error: 'NEXT_PUBLIC_API_URL is not set.' }, { status: 503 });
     }
 
-    const auth = req.headers.get('authorization');
     if (!auth?.toLowerCase().startsWith('bearer ')) {
       return NextResponse.json({ error: 'Missing or invalid Authorization header.' }, { status: 401 });
     }
@@ -85,7 +27,7 @@ export async function POST(req: NextRequest) {
     const coursesUrl = `https://${domain}/api/v1/courses?enrollment_state=active&per_page=100`;
     let courses: CanvasCourse[];
     try {
-      courses = await fetchAllPages<CanvasCourse>(coursesUrl, canvasToken);
+      courses = await fetchAllCanvasPages<CanvasCourse>(coursesUrl, canvasToken);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       if (msg === 'INVALID_CANVAS_TOKEN') {
@@ -120,7 +62,7 @@ export async function POST(req: NextRequest) {
       const listUrl = `https://${domain}/api/v1/courses/${course.id}/assignments?per_page=100`;
       let assignments: CanvasAssignment[];
       try {
-        assignments = await fetchAllPages<CanvasAssignment>(listUrl, canvasToken);
+        assignments = await fetchAllCanvasPages<CanvasAssignment>(listUrl, canvasToken);
       } catch {
         warnings.push(`course ${course.id}: could not load assignments`);
         continue;
@@ -182,6 +124,15 @@ export async function POST(req: NextRequest) {
       warnings: warnings.length ? warnings : undefined,
     });
   } catch (e) {
+    if (e instanceof Error && e.message === 'UNAUTHORIZED') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (e instanceof Error && e.message === 'CANVAS_NOT_CONFIGURED') {
+      return NextResponse.json(
+        { error: 'Save both your school Canvas domain and Canvas token before importing.' },
+        { status: 400 }
+      );
+    }
     const message = e instanceof Error ? e.message : 'Unknown error';
     return NextResponse.json({ error: message }, { status: 500 });
   }
