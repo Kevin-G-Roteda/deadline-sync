@@ -39,6 +39,20 @@ export interface UserProfilePayload {
   name?: string;
 }
 
+export interface CanvasSettings {
+  canvasTokenConfigured: boolean;
+  canvasDomain: string;
+  updatedAt?: string | null;
+}
+
+export interface StoredFile {
+  key: string;
+  name: string;
+  size: number;
+  uploadedAt: string | null;
+  category: string;
+}
+
 async function parseApiErrorBody(res: Response): Promise<string> {
   if (res.status === 401) {
     try {
@@ -49,6 +63,14 @@ async function parseApiErrorBody(res: Response): Promise<string> {
     }
   }
   return `Failed to load assignments: ${res.status}`;
+}
+
+async function getJsonOrThrow<T>(res: Response, fallbackMessage: string): Promise<T> {
+  const data = (await res.json().catch(() => ({}))) as T & { error?: string };
+  if (!res.ok) {
+    throw new Error(data.error || fallbackMessage);
+  }
+  return data;
 }
 
 export async function listAssignments(): Promise<{ assignments: Assignment[]; count: number }> {
@@ -148,4 +170,56 @@ export async function importFromCanvas(): Promise<CanvasImportResult> {
     throw new Error(data.error || `Canvas import failed (${res.status})`);
   }
   return data as CanvasImportResult;
+}
+
+export async function getCanvasSettings(): Promise<CanvasSettings> {
+  const res = await fetch('/api/user/canvas-settings', {
+    headers: await getAuthHeaders(),
+  });
+
+  return getJsonOrThrow<CanvasSettings>(res, 'Failed to load Canvas settings');
+}
+
+export async function saveCanvasSettings(body: {
+  canvasToken: string;
+  canvasDomain: string;
+}): Promise<CanvasSettings> {
+  const res = await fetch('/api/user/canvas-settings', {
+    method: 'PUT',
+    headers: await getAuthHeaders(),
+    body: JSON.stringify(body),
+  });
+
+  return getJsonOrThrow<CanvasSettings>(res, 'Failed to save Canvas settings');
+}
+
+export async function listUserFiles(): Promise<{ files: StoredFile[] }> {
+  const res = await fetch('/api/files', {
+    headers: await getAuthHeaders(),
+  });
+
+  return getJsonOrThrow<{ files: StoredFile[] }>(res, 'Failed to load files');
+}
+
+export async function createFileUpload(body: { fileName: string; contentType: string }) {
+  const res = await fetch('/api/files', {
+    method: 'POST',
+    headers: await getAuthHeaders(),
+    body: JSON.stringify(body),
+  });
+
+  return getJsonOrThrow<{
+    uploadUrl: string;
+    file: Pick<StoredFile, 'key' | 'name' | 'category'>;
+  }>(res, 'Failed to prepare upload');
+}
+
+export async function getFileViewUrl(key: string): Promise<{ url: string }> {
+  const res = await fetch('/api/files/view', {
+    method: 'POST',
+    headers: await getAuthHeaders(),
+    body: JSON.stringify({ key }),
+  });
+
+  return getJsonOrThrow<{ url: string }>(res, 'Failed to open file');
 }

@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { GetCommand } from '@aws-sdk/lib-dynamodb';
+import { docClient, usersTableName } from '@/lib/aws-server';
+import { getAuthenticatedUserFromRequest } from '@/lib/server-auth';
 
 type CanvasCourse = {
   id: number;
@@ -64,12 +67,22 @@ async function fetchAllPages<T>(startUrl: string, token: string): Promise<T[]> {
 export async function POST(req: NextRequest) {
   try {
     const apiBase = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '');
-    const canvasToken = process.env.CANVAS_ACCESS_TOKEN;
-    const domain = normalizeDomain(process.env.CANVAS_DOMAIN || 'mdc.instructure.com');
+    const auth = req.headers.get('authorization');
+    const user = getAuthenticatedUserFromRequest(req);
+    const userProfile = await docClient.send(
+      new GetCommand({
+        TableName: usersTableName,
+        Key: { userID: user.sub },
+      })
+    );
+
+    const canvasPreferences = userProfile.Item?.preferences?.canvas || {};
+    const canvasToken = canvasPreferences.token || process.env.CANVAS_ACCESS_TOKEN;
+    const domain = normalizeDomain(canvasPreferences.domain || process.env.CANVAS_DOMAIN || 'mdc.instructure.com');
 
     if (!canvasToken) {
       return NextResponse.json(
-        { error: 'Canvas is not configured (missing CANVAS_ACCESS_TOKEN).' },
+        { error: 'Canvas is not configured for this account yet. Save your Canvas token first.' },
         { status: 503 }
       );
     }
@@ -77,7 +90,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'NEXT_PUBLIC_API_URL is not set.' }, { status: 503 });
     }
 
-    const auth = req.headers.get('authorization');
     if (!auth?.toLowerCase().startsWith('bearer ')) {
       return NextResponse.json({ error: 'Missing or invalid Authorization header.' }, { status: 401 });
     }
@@ -182,6 +194,9 @@ export async function POST(req: NextRequest) {
       warnings: warnings.length ? warnings : undefined,
     });
   } catch (e) {
+    if (e instanceof Error && e.message === 'UNAUTHORIZED') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     const message = e instanceof Error ? e.message : 'Unknown error';
     return NextResponse.json({ error: message }, { status: 500 });
   }
