@@ -9,20 +9,23 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertCircle, Loader2, Target, Mail, User, Lock } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { CheckCircle2, AlertCircle, Loader2, Target, Mail, User, Lock } from 'lucide-react';
 
 function AuthForm() {
-  const { login, signup, confirmSignup, error, loading, clearError } = useAuth();
+  const { login, signup, confirmSignup, resendVerificationCode, error, loading, clearError } = useAuth();
   const [mode, setMode] = useState<'login' | 'signup' | 'confirm'>('login');
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    name: '',
-    confirmationCode: '',
+  const [formData, setFormData] = useState({ 
+    email: '', 
+    password: '', 
+    name: '', 
+    confirmationCode: '' 
   });
+  const [resending, setResending] = useState(false);
+  const [resendMessage, setResendMessage] = useState<string | null>(null);
+  const [loginResendMessage, setLoginResendMessage] = useState<string | null>(null);
+  const [loginResending, setLoginResending] = useState(false);
 
-  // When login says user is not confirmed, show the code entry form
   React.useEffect(() => {
     if (error && (error.includes('verify your email') || error.includes('User is not confirmed') || error.includes('not confirmed'))) {
       setMode('confirm');
@@ -33,6 +36,7 @@ function AuthForm() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoginResendMessage(null);
     try {
       await login(formData.email, formData.password);
       router.replace('/dashboard');
@@ -40,6 +44,24 @@ function AuthForm() {
       const isUnconfirmed = err?.message?.includes('verify your email') || err?.message?.includes('User is not confirmed');
       if (isUnconfirmed) setMode('confirm');
       console.error(err);
+    }
+  };
+
+  const handleResendFromLogin = async () => {
+    const email = formData.email.trim();
+    if (!email) return;
+    setLoginResendMessage(null);
+    clearError();
+    try {
+      setLoginResending(true);
+      await resendVerificationCode(email);
+      setLoginResendMessage(
+        `We sent a new message to ${email} with your verification code. The same email also includes a link to confirm your account (or use Verify below).`
+      );
+    } catch {
+      // Error shown via auth context
+    } finally {
+      setLoginResending(false);
     }
   };
 
@@ -62,6 +84,21 @@ function AuthForm() {
       router.replace('/dashboard');
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const handleResendCode = async () => {
+    const email = formData.email.trim();
+    if (!email) return;
+    setResendMessage(null);
+    try {
+      setResending(true);
+      await resendVerificationCode(email);
+      setResendMessage(`A new verification code was sent to ${email}.`);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setResending(false);
     }
   };
 
@@ -138,6 +175,40 @@ function AuthForm() {
                   'Sign In'
                 )}
               </Button>
+              {loginResendMessage && (
+                <Alert className="bg-emerald-50 border-emerald-200">
+                  <AlertDescription className="text-emerald-800">{loginResendMessage}</AlertDescription>
+                </Alert>
+              )}
+              <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-4 space-y-3">
+                <p className="text-sm text-slate-600">
+                  Haven&apos;t verified yet? Resend the email from Cognito — it contains your <strong className="font-medium text-slate-800">verification code</strong> and a <strong className="font-medium text-slate-800">confirmation link</strong>.
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full border-slate-300"
+                  onClick={handleResendFromLogin}
+                  disabled={loading || loginResending || !formData.email.trim()}
+                >
+                  {loginResending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Sending verification email...
+                    </>
+                  ) : (
+                    'Resend verification email'
+                  )}
+                </Button>
+                <p className="text-center text-sm text-slate-600">
+                  <Link
+                    href={formData.email.trim() ? `/verify?email=${encodeURIComponent(formData.email.trim())}` : '/verify'}
+                    className="text-teal-600 hover:text-teal-700 font-medium underline underline-offset-2"
+                  >
+                    Open verify page with code or password
+                  </Link>
+                </p>
+              </div>
               <div className="text-center text-sm">
                 <span className="text-slate-600">Don&apos;t have an account? </span>
                 <Button
@@ -269,6 +340,27 @@ function AuthForm() {
                   maxLength={6}
                 />
               </div>
+              {resendMessage && (
+                <Alert className="bg-emerald-50 border-emerald-200">
+                  <AlertDescription className="text-emerald-800">{resendMessage}</AlertDescription>
+                </Alert>
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={handleResendCode}
+                disabled={loading || resending || !formData.email.trim()}
+              >
+                {resending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  'Resend verification code'
+                )}
+              </Button>
               <Button type="submit" className="w-full h-11 rounded-lg bg-teal-600 hover:bg-teal-700 text-white font-medium" disabled={loading}>
                 {loading ? (
                   <>
@@ -276,7 +368,10 @@ function AuthForm() {
                     Verifying...
                   </>
                 ) : (
-                  'Verify Email'
+                  <>
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                    Verify and Sign In
+                  </>
                 )}
               </Button>
               <div className="text-center text-sm space-y-1">
@@ -315,7 +410,6 @@ export default function Page() {
     setMounted(true);
   }, []);
 
-  // When authenticated, redirect to dashboard
   React.useEffect(() => {
     if (mounted && !loading && user) {
       router.replace('/dashboard');

@@ -55,3 +55,6 @@ next-env.d.ts
 .eslintcache
 *.log
 .cache/
+
+# Local backups (do not commit)
+backups/
