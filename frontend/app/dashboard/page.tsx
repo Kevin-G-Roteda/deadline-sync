@@ -84,21 +84,35 @@ export default function DashboardPage() {
       </header>
 
       <main className="container mx-auto max-w-4xl p-6 sm:p-8 space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-2xl">Dashboard</CardTitle>
-            <CardDescription>Welcome back, {user.name || user.email}!</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Alert className="border-teal-200 bg-teal-50">
-              <CheckCircle2 className="h-4 w-4 text-teal-600" />
-              <AlertTitle className="text-teal-900">You’re signed in</AlertTitle>
-              <AlertDescription className="text-teal-700">
-                Manage your assignments and deadlines below.
-              </AlertDescription>
-            </Alert>
-          </CardContent>
-        </Card>
+        {/*
+          Use first name from user.name when available; 
+          otherwise fall back to email prefix (before @).
+        */}
+        {(() => {
+          const fullName = user.name || '';
+          const firstNameFromName = fullName.trim().split(' ')[0] || '';
+          const emailPrefix = (user.email || '').split('@')[0] || '';
+          const firstName = firstNameFromName || emailPrefix || 'User';
+          return (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-2xl">Dashboard</CardTitle>
+                <CardDescription>
+                  {`Welcome To DeadlineSync ${firstName}`}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Alert className="border-teal-200 bg-teal-50">
+                  <CheckCircle2 className="h-4 w-4 text-teal-600" />
+                  <AlertTitle className="text-teal-900">You’re signed in</AlertTitle>
+                  <AlertDescription className="text-teal-700">
+                    Manage your assignments and deadlines below.
+                  </AlertDescription>
+                </Alert>
+              </CardContent>
+            </Card>
+          );
+        })()}
 
         <Card>
           <CardHeader>
