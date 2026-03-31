@@ -423,11 +423,6 @@ export default function DashboardPage() {
 
   const assignmentBuckets = React.useMemo(() => getAssignmentBuckets(assignments), [assignments]);
 
-  const fullName = (user.name || '').trim();
-  const firstNameFromName = fullName.split(' ')[0] || '';
-  const emailPrefix = (user.email || '').split('@')[0] || '';
-  const firstName = firstNameFromName || emailPrefix || 'User';
-
   if (loading || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
@@ -466,9 +461,9 @@ export default function DashboardPage() {
       <main className="container mx-auto max-w-4xl p-6 sm:p-8 space-y-6">
         <Card className="overflow-hidden border-0 bg-slate-900 text-white shadow-xl">
           <CardHeader>
-            <CardTitle className="text-2xl">Welcome To DeadlineSync</CardTitle>
+            <CardTitle className="text-2xl">Welcome to DeadlineSync</CardTitle>
             <CardDescription className="text-slate-300">
-              Welcome To DeadlineSync {firstName}
+              Welcome to DeadlineSync
             </CardDescription>
           </CardHeader>
           <CardContent>
