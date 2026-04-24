@@ -4,6 +4,38 @@ import { docClient, usersTableName } from '@/lib/aws-server';
 import { getAuthenticatedUserFromRequest } from '@/lib/server-auth';
 import { normalizeCanvasDomain } from '@/lib/canvas-server';
 
+async function findCanvasTokenOwner(userId: string, canvasToken: string) {
+  let exclusiveStartKey: Record<string, unknown> | undefined;
+
+  do {
+    const page = await docClient.send(
+      new ScanCommand({
+        TableName: usersTableName,
+        FilterExpression:
+          'userID <> :userId AND #preferences.#canvas.#token = :canvasToken',
+        ExpressionAttributeNames: {
+          '#preferences': 'preferences',
+          '#canvas': 'canvas',
+          '#token': 'token',
+        },
+        ExpressionAttributeValues: {
+          ':userId': userId,
+          ':canvasToken': canvasToken,
+        },
+        ProjectionExpression: 'userID',
+        ExclusiveStartKey: exclusiveStartKey,
+      })
+    );
+
+    if ((page.Items || []).length > 0) {
+      return true;
+    }
+    exclusiveStartKey = page.LastEvaluatedKey;
+  } while (exclusiveStartKey);
+
+  return false;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const user = getAuthenticatedUserFromRequest(request);
@@ -48,26 +80,8 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const existingTokenOwner = await docClient.send(
-      new ScanCommand({
-        TableName: usersTableName,
-        FilterExpression:
-          'userID <> :userId AND #preferences.#canvas.#token = :canvasToken',
-        ExpressionAttributeNames: {
-          '#preferences': 'preferences',
-          '#canvas': 'canvas',
-          '#token': 'token',
-        },
-        ExpressionAttributeValues: {
-          ':userId': user.sub,
-          ':canvasToken': canvasToken,
-        },
-        ProjectionExpression: 'userID',
-        Limit: 1,
-      })
-    );
-
-    if ((existingTokenOwner.Items || []).length > 0) {
+    const hasCollision = await findCanvasTokenOwner(user.sub, canvasToken);
+    if (hasCollision) {
       return NextResponse.json(
         { error: 'This Canvas token is already linked to another account.' },
         { status: 409 }

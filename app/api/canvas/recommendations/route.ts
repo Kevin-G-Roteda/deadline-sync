@@ -129,6 +129,7 @@ export async function GET(request: NextRequest) {
         if (assignment.has_submitted_submissions) continue;
 
         const daysRemaining = daysUntil(assignment.due_at);
+        if (daysRemaining < 0) continue;
         if (daysRemaining > 14) continue;
 
         const group = assignment.assignment_group_id ? groupMap.get(assignment.assignment_group_id) : undefined;

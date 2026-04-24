@@ -87,13 +87,20 @@ function isLikelyCompleted(assignment: Assignment) {
     gradedAt?: string | null;
   };
   const submissionStatus = String(anyAssignment.submissionStatus || '').toLowerCase();
-  const hasGrade = typeof anyAssignment.grade === 'number';
+  const grade =
+    typeof anyAssignment.grade === 'string'
+      ? Number(anyAssignment.grade)
+      : anyAssignment.grade;
+  const hasGrade = typeof grade === 'number' && Number.isFinite(grade);
   return Boolean(
     assignment.completed ||
       status === 'completed' ||
       status === 'submitted' ||
+      status === 'done' ||
+      status === 'turned_in' ||
       submissionStatus === 'submitted' ||
       submissionStatus === 'graded' ||
+      submissionStatus === 'turned_in' ||
       hasGrade ||
       anyAssignment.submittedAt ||
       anyAssignment.gradedAt
@@ -104,6 +111,8 @@ function getAssignmentBuckets(assignments: Assignment[]) {
   const today = startOfToday();
   const nextWeekBoundary = new Date(today);
   nextWeekBoundary.setDate(today.getDate() + 7);
+  const stalePastDueBoundary = new Date(today);
+  stalePastDueBoundary.setDate(today.getDate() - 14);
 
   const visibleAssignments = assignments.filter((assignment) => {
     const dueDate = new Date(assignment.dueDate);
@@ -125,6 +134,9 @@ function getAssignmentBuckets(assignments: Assignment[]) {
     }
 
     if (dueDate < new Date()) {
+      if (dueDate < stalePastDueBoundary) {
+        continue;
+      }
       if (!isLikelyCompleted(assignment)) {
         pastDue.push(assignment);
       }
