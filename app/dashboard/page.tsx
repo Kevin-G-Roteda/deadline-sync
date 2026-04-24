@@ -78,6 +78,28 @@ function startOfToday() {
   return date;
 }
 
+function isLikelyCompleted(assignment: Assignment) {
+  const status = String(assignment.status || '').toLowerCase();
+  const anyAssignment = assignment as Assignment & {
+    grade?: number | null;
+    submissionStatus?: string;
+    submittedAt?: string | null;
+    gradedAt?: string | null;
+  };
+  const submissionStatus = String(anyAssignment.submissionStatus || '').toLowerCase();
+  const hasGrade = typeof anyAssignment.grade === 'number';
+  return Boolean(
+    assignment.completed ||
+      status === 'completed' ||
+      status === 'submitted' ||
+      submissionStatus === 'submitted' ||
+      submissionStatus === 'graded' ||
+      hasGrade ||
+      anyAssignment.submittedAt ||
+      anyAssignment.gradedAt
+  );
+}
+
 function getAssignmentBuckets(assignments: Assignment[]) {
   const today = startOfToday();
   const nextWeekBoundary = new Date(today);
@@ -103,7 +125,7 @@ function getAssignmentBuckets(assignments: Assignment[]) {
     }
 
     if (dueDate < new Date()) {
-      if (!assignment.completed) {
+      if (!isLikelyCompleted(assignment)) {
         pastDue.push(assignment);
       }
       continue;

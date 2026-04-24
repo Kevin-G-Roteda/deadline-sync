@@ -8,6 +8,8 @@ type CanvasAssignment = {
   due_at?: string | null;
   html_url?: string;
   published?: boolean;
+  has_submitted_submissions?: boolean;
+  graded_submissions_exist?: boolean;
 };
 
 export async function POST(req: NextRequest) {
@@ -92,6 +94,10 @@ export async function POST(req: NextRequest) {
           description,
           platform: 'canvas',
           sourceUrl: typeof a.html_url === 'string' ? a.html_url : '',
+          completed: Boolean(a.has_submitted_submissions || a.graded_submissions_exist),
+          submissionStatus:
+            a.graded_submissions_exist ? 'graded' : a.has_submitted_submissions ? 'submitted' : 'not_submitted',
+          submittedAt: a.has_submitted_submissions ? new Date().toISOString() : null,
         };
 
         const res = await fetch(`${apiBase}/assignments`, {

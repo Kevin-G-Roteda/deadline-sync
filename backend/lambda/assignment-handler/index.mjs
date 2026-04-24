@@ -7,7 +7,8 @@ import {
   PutCommand,
   UpdateCommand,
   DeleteCommand,
-  QueryCommand
+  QueryCommand,
+  ScanCommand
 } from "@aws-sdk/lib-dynamodb";
 
 const client = new DynamoDBClient({
@@ -190,8 +191,43 @@ function resolveAssignmentId(body) {
   return `assign_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 }
 
+function parseBody(event) {
+  if (!event.body) return {};
+  if (typeof event.body === "string") {
+    try {
+      return JSON.parse(event.body);
+    } catch {
+      return {};
+    }
+  }
+  return event.body;
+}
+
+function inferCompleted(body = {}, existing = null) {
+  const status = String(body.status ?? existing?.status ?? "").toLowerCase();
+  const submissionStatus = String(
+    body.submissionStatus ?? existing?.submissionStatus ?? ""
+  ).toLowerCase();
+  const gradeValue = body.grade ?? existing?.grade;
+  const hasGrade = typeof gradeValue === "number";
+  const submittedAt = body.submittedAt ?? existing?.submittedAt;
+  const gradedAt = body.gradedAt ?? existing?.gradedAt;
+  const explicitCompleted = body.completed ?? existing?.completed;
+
+  return Boolean(
+    explicitCompleted ||
+      status === "completed" ||
+      status === "submitted" ||
+      submissionStatus === "submitted" ||
+      submissionStatus === "graded" ||
+      hasGrade ||
+      submittedAt ||
+      gradedAt
+  );
+}
+
 async function handleCreate(event, userId) {
-  const body = JSON.parse(event.body || "{}");
+  const body = parseBody(event);
 
   if (!body.title || !body.dueDate || !body.courseId) {
     return {
@@ -205,6 +241,7 @@ async function handleCreate(event, userId) {
   }
 
   const resolvedAssignmentId = resolveAssignmentId(body);
+  let existingRecord = null;
 
   let createdAt = new Date().toISOString();
   if (typeof body.assignmentId === "string" && /^canvas_\d+_\d+$/.test(body.assignmentId.trim())) {
@@ -214,6 +251,7 @@ async function handleCreate(event, userId) {
         Key: { assignmentId: resolvedAssignmentId, userId }
       })
     );
+    existingRecord = existingCreate.Item || null;
     if (existingCreate.Item?.createdAt) {
       createdAt = existingCreate.Item.createdAt;
     }
@@ -234,11 +272,14 @@ async function handleCreate(event, userId) {
     sourceUrl,
     priority: body.priority || "medium",
     status: body.status || "not_started",
-    completed: false,
+    completed: inferCompleted(body, existingRecord),
     estimatedHours: body.estimatedHours || 0,
-    actualHours: 0,
+    actualHours: body.actualHours || 0,
     description: body.description || "",
-    grade: null,
+    grade: body.grade ?? null,
+    submissionStatus: body.submissionStatus || null,
+    submittedAt: body.submittedAt || null,
+    gradedAt: body.gradedAt || null,
     maxPoints: body.maxPoints || 100,
     createdAt,
     updatedAt: new Date().toISOString()
@@ -274,7 +315,7 @@ async function handleUpdate(event, userId) {
     };
   }
 
-  const body = JSON.parse(event.body || "{}");
+  const body = parseBody(event);
   const updateExpressions = [];
   const expressionAttributeNames = {};
   const expressionAttributeValues = {};
@@ -288,7 +329,15 @@ async function handleUpdate(event, userId) {
     "estimatedHours",
     "actualHours",
     "description",
-    "grade"
+    "grade",
+    "courseId",
+    "courseName",
+    "platform",
+    "sourceUrl",
+    "maxPoints",
+    "submissionStatus",
+    "submittedAt",
+    "gradedAt"
   ];
 
   allowedFields.forEach((field) => {
@@ -302,6 +351,12 @@ async function handleUpdate(event, userId) {
   updateExpressions.push("#updatedAt = :updatedAt");
   expressionAttributeNames["#updatedAt"] = "updatedAt";
   expressionAttributeValues[":updatedAt"] = new Date().toISOString();
+
+  if (inferCompleted(body)) {
+    updateExpressions.push("#completed = :completed");
+    expressionAttributeNames["#completed"] = "completed";
+    expressionAttributeValues[":completed"] = true;
+  }
 
   if (updateExpressions.length === 1) {
     return {
@@ -365,7 +420,7 @@ async function handleDelete(event, userId) {
 }
 
 async function handleUserCreate(event) {
-  const body = JSON.parse(event.body || "{}");
+  const body = parseBody(event);
   const tokenClaims = resolveTokenClaims(event);
   const bodyUserId = body.userID || body.userId;
   const userID = tokenClaims?.sub || bodyUserId;
@@ -396,6 +451,36 @@ async function handleUserCreate(event) {
       Key: { userID }
     })
   );
+
+  const requestedCanvasToken =
+    body?.preferences?.canvas?.token &&
+    String(body.preferences.canvas.token).trim();
+
+  if (requestedCanvasToken) {
+    const tokenCollision = await docClient.send(
+      new ScanCommand({
+        TableName: USERS_TABLE,
+        FilterExpression:
+          "userID <> :userID AND preferences.canvas.token = :canvasToken",
+        ExpressionAttributeValues: {
+          ":userID": userID,
+          ":canvasToken": requestedCanvasToken
+        },
+        ProjectionExpression: "userID",
+        Limit: 1
+      })
+    );
+
+    if ((tokenCollision.Items || []).length > 0) {
+      return {
+        statusCode: 409,
+        headers,
+        body: JSON.stringify({
+          error: "Canvas token already linked to another user account"
+        })
+      };
+    }
+  }
 
   if (existing.Item) {
     await docClient.send(

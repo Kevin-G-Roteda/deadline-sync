@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GetCommand, PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
+import { GetCommand, PutCommand, ScanCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { docClient, usersTableName } from '@/lib/aws-server';
 import { getAuthenticatedUserFromRequest } from '@/lib/server-auth';
 import { normalizeCanvasDomain } from '@/lib/canvas-server';
@@ -45,6 +45,32 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json(
         { error: 'Both Canvas token and school domain are required.' },
         { status: 400 }
+      );
+    }
+
+    const existingTokenOwner = await docClient.send(
+      new ScanCommand({
+        TableName: usersTableName,
+        FilterExpression:
+          'userID <> :userId AND #preferences.#canvas.#token = :canvasToken',
+        ExpressionAttributeNames: {
+          '#preferences': 'preferences',
+          '#canvas': 'canvas',
+          '#token': 'token',
+        },
+        ExpressionAttributeValues: {
+          ':userId': user.sub,
+          ':canvasToken': canvasToken,
+        },
+        ProjectionExpression: 'userID',
+        Limit: 1,
+      })
+    );
+
+    if ((existingTokenOwner.Items || []).length > 0) {
+      return NextResponse.json(
+        { error: 'This Canvas token is already linked to another account.' },
+        { status: 409 }
       );
     }
 
