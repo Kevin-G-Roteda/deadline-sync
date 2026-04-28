@@ -11,6 +11,12 @@ type CanvasAssignment = {
   has_submitted_submissions?: boolean;
   published?: boolean;
   omit_from_final_grade?: boolean;
+  submission?: {
+    workflow_state?: string | null;
+    graded_at?: string | null;
+    submitted_at?: string | null;
+    score?: number | null;
+  } | null;
 };
 
 type CanvasAssignmentGroup = {
@@ -112,7 +118,7 @@ export async function GET(request: NextRequest) {
 
       try {
         assignments = await fetchAllCanvasPages<CanvasAssignment>(
-          `https://${domain}/api/v1/courses/${course.id}/assignments?per_page=100`,
+          `https://${domain}/api/v1/courses/${course.id}/assignments?per_page=100&include[]=submission`,
           token
         );
       } catch {
@@ -126,10 +132,23 @@ export async function GET(request: NextRequest) {
         if (!assignment?.id || !assignment.name || !assignment.due_at) continue;
         if (assignment.published === false) continue;
         if (assignment.omit_from_final_grade) continue;
-        if (assignment.has_submitted_submissions) continue;
+        const submission = assignment.submission;
+        const submissionState = String(submission?.workflow_state || '').toLowerCase();
+        if (
+          assignment.has_submitted_submissions ||
+          submission?.submitted_at ||
+          submission?.graded_at ||
+          typeof submission?.score === 'number' ||
+          submissionState === 'submitted' ||
+          submissionState === 'graded' ||
+          submissionState === 'pending_review'
+        ) {
+          continue;
+        }
 
         const daysRemaining = daysUntil(assignment.due_at);
-        if (daysRemaining > 30) continue;
+        if (daysRemaining < 0) continue;
+        if (daysRemaining > 14) continue;
 
         const group = assignment.assignment_group_id ? groupMap.get(assignment.assignment_group_id) : undefined;
         const weight = Number(group?.group_weight || 0);

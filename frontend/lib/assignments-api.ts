@@ -21,11 +21,17 @@ export interface Assignment {
   courseId: string;
   courseName?: string;
   dueDate: string;
+  /** e.g. canvas, manual */
   platform?: string;
+  /** LMS or external assignment URL */
   sourceUrl?: string;
   priority?: string;
   status?: string;
   completed?: boolean;
+  grade?: number | null;
+  submissionStatus?: string | null;
+  submittedAt?: string | null;
+  gradedAt?: string | null;
   description?: string;
   createdAt?: string;
   updatedAt?: string;
@@ -167,6 +173,7 @@ export type CanvasImportResult = {
   warnings?: string[];
 };
 
+/** Server-side Canvas import; forwards your Cognito ID token to the assignments API. */
 export async function importFromCanvas(): Promise<CanvasImportResult> {
   const session = await fetchAuthSession();
   const token = session.tokens?.idToken?.toString();
