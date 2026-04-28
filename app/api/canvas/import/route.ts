@@ -10,6 +10,12 @@ type CanvasAssignment = {
   published?: boolean;
   has_submitted_submissions?: boolean;
   graded_submissions_exist?: boolean;
+  submission?: {
+    workflow_state?: string | null;
+    submitted_at?: string | null;
+    graded_at?: string | null;
+    score?: number | null;
+  } | null;
 };
 
 export async function POST(req: NextRequest) {
@@ -61,7 +67,7 @@ export async function POST(req: NextRequest) {
     const warnings: string[] = [];
 
     for (const course of active) {
-      const listUrl = `https://${domain}/api/v1/courses/${course.id}/assignments?per_page=100`;
+      const listUrl = `https://${domain}/api/v1/courses/${course.id}/assignments?per_page=100&include[]=submission`;
       let assignments: CanvasAssignment[];
       try {
         assignments = await fetchAllCanvasPages<CanvasAssignment>(listUrl, canvasToken);
@@ -85,6 +91,25 @@ export async function POST(req: NextRequest) {
         const description =
           typeof a.description === 'string' ? a.description.slice(0, 35000) : '';
 
+        const submission = a.submission || null;
+        const submissionState = String(submission?.workflow_state || '').toLowerCase();
+        const scoreValue = submission?.score;
+        const hasNumericScore = typeof scoreValue === 'number' && Number.isFinite(scoreValue);
+        const hasSubmissionSignal = Boolean(
+          a.has_submitted_submissions ||
+            submission?.submitted_at ||
+            submissionState === 'submitted' ||
+            submissionState === 'graded' ||
+            submissionState === 'pending_review'
+        );
+        const hasGradingSignal = Boolean(a.graded_submissions_exist || submission?.graded_at || hasNumericScore);
+        const completed = hasSubmissionSignal || hasGradingSignal;
+        const submissionStatus = hasGradingSignal
+          ? 'graded'
+          : hasSubmissionSignal
+          ? 'submitted'
+          : 'not_submitted';
+
         const payload = {
           assignmentId,
           title: a.name || 'Untitled assignment',
@@ -94,10 +119,11 @@ export async function POST(req: NextRequest) {
           description,
           platform: 'canvas',
           sourceUrl: typeof a.html_url === 'string' ? a.html_url : '',
-          completed: Boolean(a.has_submitted_submissions || a.graded_submissions_exist),
-          submissionStatus:
-            a.graded_submissions_exist ? 'graded' : a.has_submitted_submissions ? 'submitted' : 'not_submitted',
-          submittedAt: a.has_submitted_submissions ? new Date().toISOString() : null,
+          completed,
+          submissionStatus,
+          submittedAt: submission?.submitted_at || null,
+          gradedAt: submission?.graded_at || null,
+          grade: hasNumericScore ? scoreValue : null,
         };
 
         const res = await fetch(`${apiBase}/assignments`, {

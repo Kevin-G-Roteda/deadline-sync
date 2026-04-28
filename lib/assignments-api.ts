@@ -28,6 +28,10 @@ export interface Assignment {
   priority?: string;
   status?: string;
   completed?: boolean;
+  grade?: number | null;
+  submissionStatus?: string | null;
+  submittedAt?: string | null;
+  gradedAt?: string | null;
   description?: string;
   createdAt?: string;
   updatedAt?: string;

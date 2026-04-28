@@ -22,6 +22,13 @@ import {
   Sparkles,
   ArrowUpRight,
   BrainCircuit,
+  ChevronDown,
+  ChevronRight,
+  Settings,
+  Sun,
+  Moon,
+  CalendarDays,
+  CircleHelp,
 } from 'lucide-react';
 import {
   createFileUpload,
@@ -70,6 +77,37 @@ function formatFileSize(size: number) {
   if (size < 1024) return `${size} B`;
   if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
   return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatMonthLabel(date: Date) {
+  return new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' }).format(date);
+}
+
+function getTimeGreeting() {
+  const hour = Number(
+    new Intl.DateTimeFormat('en-US', {
+      hour: 'numeric',
+      hour12: false,
+      timeZone: 'America/New_York',
+    }).format(new Date())
+  );
+  if (hour < 12) return 'Good Morning';
+  if (hour < 18) return 'Good Afternoon';
+  return 'Good Evening';
+}
+
+function getCourseColor(courseId: string) {
+  const palette = [
+    'bg-sky-100 text-sky-800 border-sky-200',
+    'bg-violet-100 text-violet-800 border-violet-200',
+    'bg-emerald-100 text-emerald-800 border-emerald-200',
+    'bg-amber-100 text-amber-800 border-amber-200',
+    'bg-rose-100 text-rose-800 border-rose-200',
+    'bg-cyan-100 text-cyan-800 border-cyan-200',
+  ];
+  let hash = 0;
+  for (let i = 0; i < courseId.length; i += 1) hash = (hash << 5) - hash + courseId.charCodeAt(i);
+  return palette[Math.abs(hash) % palette.length];
 }
 
 function startOfToday() {
@@ -259,6 +297,25 @@ export default function DashboardPage() {
   const [selectedFile, setSelectedFile] = React.useState<StoredFile | null>(null);
   const [selectedFileUrl, setSelectedFileUrl] = React.useState<string | null>(null);
   const [previewBusy, setPreviewBusy] = React.useState(false);
+  const [activePage, setActivePage] = React.useState<'main' | 'files' | 'calendar'>('main');
+  const [settingsOpen, setSettingsOpen] = React.useState(false);
+  const [appearance, setAppearance] = React.useState<'light' | 'dark'>('light');
+  const [fontScale, setFontScale] = React.useState(1);
+  const [helpMessage, setHelpMessage] = React.useState('');
+  const [sectionOpen, setSectionOpen] = React.useState({
+    assignments: true,
+    currentAssignments: true,
+    getAhead: true,
+    pastDue: true,
+    recommendations: true,
+    files: true,
+    canvas: true,
+  });
+  const [calendarMonth, setCalendarMonth] = React.useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
+  const [selectedCourseId, setSelectedCourseId] = React.useState<string>('all');
 
   React.useEffect(() => {
     if (!user) return;
@@ -454,6 +511,34 @@ export default function DashboardPage() {
   };
 
   const assignmentBuckets = React.useMemo(() => getAssignmentBuckets(assignments), [assignments]);
+  const greeting = React.useMemo(() => getTimeGreeting(), []);
+  const monthAssignments = React.useMemo(() => {
+    return assignments.filter((assignment) => {
+      const date = new Date(assignment.dueDate);
+      return (
+        !Number.isNaN(date.getTime()) &&
+        date.getMonth() === calendarMonth.getMonth() &&
+        date.getFullYear() === calendarMonth.getFullYear()
+      );
+    });
+  }, [assignments, calendarMonth]);
+  const courseOptions = React.useMemo(() => {
+    const map = new Map<string, string>();
+    assignments.forEach((item) => map.set(item.courseId, item.courseName || item.courseId));
+    return Array.from(map.entries()).map(([courseId, courseName]) => ({ courseId, courseName }));
+  }, [assignments]);
+  const filteredFiles = React.useMemo(() => {
+    if (selectedCourseId === 'all') return files;
+    return files.filter((file) => {
+      const lower = file.name.toLowerCase();
+      const match = courseOptions.find((course) => course.courseId === selectedCourseId);
+      if (!match) return false;
+      return (
+        lower.includes(match.courseName.toLowerCase()) ||
+        lower.includes(match.courseId.toLowerCase())
+      );
+    });
+  }, [files, selectedCourseId, courseOptions]);
 
   if (loading || !user) {
     return (
@@ -464,8 +549,19 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      <header className="border-b border-slate-200 bg-white/80 backdrop-blur-sm sticky top-0 z-10">
+    <div
+      className={`min-h-screen ${
+        appearance === 'dark'
+          ? 'bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-100'
+          : 'bg-gradient-to-br from-slate-50 to-slate-100'
+      }`}
+      style={{ fontSize: `${fontScale}rem` }}
+    >
+      <header
+        className={`sticky top-0 z-10 border-b backdrop-blur-sm ${
+          appearance === 'dark' ? 'border-slate-800 bg-slate-900/80' : 'border-slate-200 bg-white/80'
+        }`}
+      >
         <div className="container mx-auto max-w-4xl px-4 sm:px-6 h-14 flex items-center justify-between">
           <Link href="/dashboard" className="flex items-center gap-2 text-slate-900 font-semibold">
             <div className="h-8 w-8 rounded-lg bg-teal-600 flex items-center justify-center">
@@ -473,7 +569,16 @@ export default function DashboardPage() {
             </div>
             <span>DeadlineSync</span>
           </Link>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSettingsOpen((value) => !value)}
+              className="gap-2"
+            >
+              <Settings className="h-4 w-4" />
+              Settings
+            </Button>
             <span className="text-sm text-slate-600 truncate max-w-[180px]" title={user.email}>
               {user.email}
             </span>
@@ -491,11 +596,81 @@ export default function DashboardPage() {
       </header>
 
       <main className="container mx-auto max-w-4xl p-6 sm:p-8 space-y-6">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant={activePage === 'main' ? 'default' : 'outline'} size="sm" onClick={() => setActivePage('main')}>
+            Main Page
+          </Button>
+          <Button variant={activePage === 'files' ? 'default' : 'outline'} size="sm" onClick={() => setActivePage('files')}>
+            Uploaded Files
+          </Button>
+          <Button variant={activePage === 'calendar' ? 'default' : 'outline'} size="sm" onClick={() => setActivePage('calendar')}>
+            Calendar
+          </Button>
+        </div>
+        {settingsOpen ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Settings className="h-5 w-5 text-teal-600" />
+                Settings
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-wrap items-center gap-3">
+                <Button variant={appearance === 'light' ? 'default' : 'outline'} size="sm" onClick={() => setAppearance('light')}>
+                  <Sun className="mr-2 h-4 w-4" />
+                  Light
+                </Button>
+                <Button variant={appearance === 'dark' ? 'default' : 'outline'} size="sm" onClick={() => setAppearance('dark')}>
+                  <Moon className="mr-2 h-4 w-4" />
+                  Dark
+                </Button>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-slate-700">Text size</label>
+                <input
+                  type="range"
+                  min={0.9}
+                  max={1.2}
+                  step={0.05}
+                  value={fontScale}
+                  onChange={(event) => setFontScale(Number(event.target.value))}
+                  className="w-full"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                  <CircleHelp className="h-4 w-4" />
+                  Help
+                </label>
+                <textarea
+                  className="w-full rounded-md border border-slate-300 p-3 text-sm"
+                  rows={4}
+                  placeholder="Describe your issue and click Send help message."
+                  value={helpMessage}
+                  onChange={(event) => setHelpMessage(event.target.value)}
+                />
+                <div className="flex items-center gap-3">
+                  <Button
+                    size="sm"
+                    asChild
+                  >
+                    <a href={`mailto:kevingroteda@gmail.com?subject=DeadlineSync%20Help&body=${encodeURIComponent(helpMessage)}`}>
+                      Send help message
+                    </a>
+                  </Button>
+                  <p className="text-xs text-slate-500">Video help placeholders can be added here, including YouTube links.</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ) : null}
+        {activePage === 'main' ? (
         <Card className="overflow-hidden border-0 bg-slate-900 text-white shadow-xl">
           <CardHeader>
-            <CardTitle className="text-2xl">Welcome to DeadlineSync</CardTitle>
+            <CardTitle className="text-2xl">{greeting}</CardTitle>
             <CardDescription className="text-slate-300">
-              Hi {user.name || user.email}, your planner is organized around what needs attention now, what you can start early, and the files tied to your account.
+              {user.name || user.email}, your planner is organized around what needs attention now, what you can start early, and the files tied to your account.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -508,8 +683,9 @@ export default function DashboardPage() {
             </Alert>
           </CardContent>
         </Card>
+        ) : null}
 
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className={`grid gap-4 md:grid-cols-3 ${activePage === 'main' ? '' : 'hidden'}`}>
           <Card className="border-emerald-200 bg-emerald-50/70">
             <CardHeader className="pb-3">
               <CardDescription className="text-emerald-700">Due Within 7 Days</CardDescription>
@@ -530,17 +706,26 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        <Card>
+        <Card className={activePage === 'main' ? '' : 'hidden'}>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-teal-600" />
-              Assignments Overview
-            </CardTitle>
+            <div className="flex items-center justify-between gap-3">
+              <CardTitle className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-teal-600" />
+                Assignments Overview
+              </CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSectionOpen((prev) => ({ ...prev, assignments: !prev.assignments }))}
+              >
+                {sectionOpen.assignments ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              </Button>
+            </div>
             <CardDescription>
               Organized from today, {assignmentBuckets.todayLabel}. Past-due completed work is hidden from these sections so unfinished work stands out.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className={`space-y-6 ${sectionOpen.assignments ? '' : 'hidden'}`}>
             {assignmentsLoading && (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin text-teal-600" />
@@ -569,15 +754,22 @@ export default function DashboardPage() {
                     <span className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700">
                       {assignmentBuckets.currentWeek.length}
                     </span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSectionOpen((prev) => ({ ...prev, currentAssignments: !prev.currentAssignments }))}
+                    >
+                      {sectionOpen.currentAssignments ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                    </Button>
                   </div>
-                  {assignmentBuckets.currentWeek.length > 0 ? (
+                  {sectionOpen.currentAssignments && assignmentBuckets.currentWeek.length > 0 ? (
                     <AssignmentList assignments={assignmentBuckets.currentWeek} accentClass="bg-emerald-50 text-emerald-700" />
-                  ) : (
+                  ) : sectionOpen.currentAssignments ? (
                     <SectionEmptyState
                       title="Nothing due this week"
                       description="You are clear for the next seven days."
                     />
-                  )}
+                  ) : null}
                 </section>
 
                 <section className="space-y-3">
@@ -589,15 +781,22 @@ export default function DashboardPage() {
                     <span className="rounded-full bg-sky-50 px-3 py-1 text-sm font-medium text-sky-700">
                       {assignmentBuckets.getAhead.length}
                     </span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSectionOpen((prev) => ({ ...prev, getAhead: !prev.getAhead }))}
+                    >
+                      {sectionOpen.getAhead ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                    </Button>
                   </div>
-                  {assignmentBuckets.getAhead.length > 0 ? (
+                  {sectionOpen.getAhead && assignmentBuckets.getAhead.length > 0 ? (
                     <AssignmentList assignments={assignmentBuckets.getAhead} accentClass="bg-sky-50 text-sky-700" />
-                  ) : (
+                  ) : sectionOpen.getAhead ? (
                     <SectionEmptyState
                       title="No future assignments yet"
                       description="Once new work is imported or created, it will appear here so students can plan ahead."
                     />
-                  )}
+                  ) : null}
                 </section>
 
                 <section className="space-y-3">
@@ -609,32 +808,48 @@ export default function DashboardPage() {
                     <span className="rounded-full bg-rose-50 px-3 py-1 text-sm font-medium text-rose-700">
                       {assignmentBuckets.pastDue.length}
                     </span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSectionOpen((prev) => ({ ...prev, pastDue: !prev.pastDue }))}
+                    >
+                      {sectionOpen.pastDue ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                    </Button>
                   </div>
-                  {assignmentBuckets.pastDue.length > 0 ? (
+                  {sectionOpen.pastDue && assignmentBuckets.pastDue.length > 0 ? (
                     <AssignmentList assignments={assignmentBuckets.pastDue} accentClass="bg-rose-50 text-rose-700" />
-                  ) : (
+                  ) : sectionOpen.pastDue ? (
                     <SectionEmptyState
                       title="No overdue work"
                       description="Completed overdue assignments are hidden, and there are currently no incomplete past-due tasks."
                     />
-                  )}
+                  ) : null}
                 </section>
               </div>
             )}
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className={activePage === 'main' ? '' : 'hidden'}>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Link2 className="h-5 w-5 text-teal-600" />
-              Canvas LMS
-            </CardTitle>
+            <div className="flex items-center justify-between gap-3">
+              <CardTitle className="flex items-center gap-2">
+                <Link2 className="h-5 w-5 text-teal-600" />
+                Canvas LMS
+              </CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSectionOpen((prev) => ({ ...prev, canvas: !prev.canvas }))}
+              >
+                {sectionOpen.canvas ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              </Button>
+            </div>
             <CardDescription>
               Each student can save their own Canvas personal access token and domain. Imports run server-side and only bring in that student&apos;s assignments.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className={`space-y-4 ${sectionOpen.canvas ? '' : 'hidden'}`}>
             {canvasError && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
@@ -720,17 +935,26 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className={activePage === 'main' ? '' : 'hidden'}>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BrainCircuit className="h-5 w-5 text-teal-600" />
-              What To Work On First
-            </CardTitle>
+            <div className="flex items-center justify-between gap-3">
+              <CardTitle className="flex items-center gap-2">
+                <BrainCircuit className="h-5 w-5 text-teal-600" />
+                What To Work On First
+              </CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSectionOpen((prev) => ({ ...prev, recommendations: !prev.recommendations }))}
+              >
+                {sectionOpen.recommendations ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              </Button>
+            </div>
             <CardDescription>
               Separate from the assignment display, these recommendations use Canvas grading weight, points possible, and due date urgency to rank the work that should probably come first.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className={`space-y-4 ${sectionOpen.recommendations ? '' : 'hidden'}`}>
             {recommendationsError && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
@@ -804,17 +1028,81 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className={activePage === 'calendar' ? '' : 'hidden'}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Files className="h-5 w-5 text-teal-600" />
-              My Files
+              <CalendarDays className="h-5 w-5 text-teal-600" />
+              Assignment Calendar
             </CardTitle>
+            <CardDescription>Browse assignments by month. Colors map to course.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCalendarMonth((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))}
+              >
+                Previous month
+              </Button>
+              <p className="font-semibold text-slate-900">{formatMonthLabel(calendarMonth)}</p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCalendarMonth((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1))}
+              >
+                Next month
+              </Button>
+            </div>
+            {monthAssignments.length === 0 ? (
+              <SectionEmptyState
+                title="No assignments in this month"
+                description="Import from Canvas or move to another month."
+              />
+            ) : (
+              <div className="space-y-2">
+                {monthAssignments.map((assignment) => (
+                  <div key={assignment.assignmentId} className="rounded-xl border border-slate-200 bg-white p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="font-medium text-slate-900">{assignment.title}</p>
+                        <p className="text-sm text-slate-600">{formatShortDate(assignment.dueDate)}</p>
+                      </div>
+                      <span
+                        className={`rounded-full border px-2.5 py-1 text-xs font-medium ${getCourseColor(
+                          assignment.courseId
+                        )}`}
+                      >
+                        {assignment.courseName || assignment.courseId}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className={activePage === 'files' ? '' : 'hidden'}>
+          <CardHeader>
+            <div className="flex items-center justify-between gap-3">
+              <CardTitle className="flex items-center gap-2">
+                <Files className="h-5 w-5 text-teal-600" />
+                My Files
+              </CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSectionOpen((prev) => ({ ...prev, files: !prev.files }))}
+              >
+                {sectionOpen.files ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              </Button>
+            </div>
             <CardDescription>
               Drag files like syllabi, rubrics, and notes into your personal library. Each student only sees files uploaded under their own account prefix in S3.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className={`space-y-4 ${sectionOpen.files ? '' : 'hidden'}`}>
             {filesError && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
@@ -827,6 +1115,25 @@ export default function DashboardPage() {
                 <AlertDescription className="text-emerald-900">{uploadNotice}</AlertDescription>
               </Alert>
             )}
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                size="sm"
+                variant={selectedCourseId === 'all' ? 'default' : 'outline'}
+                onClick={() => setSelectedCourseId('all')}
+              >
+                All classes
+              </Button>
+              {courseOptions.map((course) => (
+                <Button
+                  key={course.courseId}
+                  size="sm"
+                  variant={selectedCourseId === course.courseId ? 'default' : 'outline'}
+                  onClick={() => setSelectedCourseId(course.courseId)}
+                >
+                  {course.courseName}
+                </Button>
+              ))}
+            </div>
             <label
               className={`flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-10 text-center transition ${
                 isDraggingFiles ? 'border-teal-500 bg-teal-50' : 'border-slate-300 bg-slate-50 hover:border-slate-400'
@@ -866,7 +1173,7 @@ export default function DashboardPage() {
                     <div className="flex items-center justify-center py-10">
                       <Loader2 className="h-6 w-6 animate-spin text-teal-600" />
                     </div>
-                  ) : files.length === 0 ? (
+                  ) : filteredFiles.length === 0 ? (
                     <div className="px-4 py-8">
                       <SectionEmptyState
                         title="Your file library is empty"
@@ -874,7 +1181,7 @@ export default function DashboardPage() {
                       />
                     </div>
                   ) : (
-                    files.map((file) => (
+                    filteredFiles.map((file) => (
                       <button
                         key={file.key}
                         type="button"

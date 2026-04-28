@@ -5,6 +5,7 @@ import { getAuthenticatedUserFromRequest } from '@/lib/server-auth';
 import { normalizeCanvasDomain } from '@/lib/canvas-server';
 
 async function findCanvasTokenOwner(userId: string, canvasToken: string) {
+  const normalizedToken = canvasToken.trim();
   let exclusiveStartKey: Record<string, unknown> | undefined;
 
   do {
@@ -12,15 +13,16 @@ async function findCanvasTokenOwner(userId: string, canvasToken: string) {
       new ScanCommand({
         TableName: usersTableName,
         FilterExpression:
-          'userID <> :userId AND #preferences.#canvas.#token = :canvasToken',
+          'userID <> :userId AND (#preferences.#canvas.#token = :canvasToken OR #canvasToken = :canvasToken)',
         ExpressionAttributeNames: {
           '#preferences': 'preferences',
           '#canvas': 'canvas',
           '#token': 'token',
+          '#canvasToken': 'canvasToken',
         },
         ExpressionAttributeValues: {
           ':userId': userId,
-          ':canvasToken': canvasToken,
+          ':canvasToken': normalizedToken,
         },
         ProjectionExpression: 'userID',
         ExclusiveStartKey: exclusiveStartKey,
@@ -83,7 +85,7 @@ export async function PUT(request: NextRequest) {
     const hasCollision = await findCanvasTokenOwner(user.sub, canvasToken);
     if (hasCollision) {
       return NextResponse.json(
-        { error: 'This Canvas token is already linked to another account.' },
+        { error: 'Sorry. This Canvas token is currently in use by another user.' },
         { status: 409 }
       );
     }
@@ -114,6 +116,7 @@ export async function PUT(request: NextRequest) {
             email: user.email || '',
             name: user.name || '',
             preferences: nextPreferences,
+            canvasToken,
             createdAt: now,
             updatedAt: now,
           },
@@ -124,9 +127,10 @@ export async function PUT(request: NextRequest) {
         new UpdateCommand({
           TableName: usersTableName,
           Key: { userID: user.sub },
-          UpdateExpression: 'SET preferences = :preferences, updatedAt = :updatedAt',
+          UpdateExpression: 'SET preferences = :preferences, canvasToken = :canvasToken, updatedAt = :updatedAt',
           ExpressionAttributeValues: {
             ':preferences': nextPreferences,
+            ':canvasToken': canvasToken,
             ':updatedAt': now,
           },
         })
