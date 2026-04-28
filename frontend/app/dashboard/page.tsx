@@ -110,6 +110,13 @@ function getCourseColor(courseId: string) {
   return palette[Math.abs(hash) % palette.length];
 }
 
+function formatDayKey(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 function startOfToday() {
   const date = new Date();
   date.setHours(0, 0, 0, 0);
@@ -522,6 +529,30 @@ export default function DashboardPage() {
       );
     });
   }, [assignments, calendarMonth]);
+  const calendarGridDays = React.useMemo(() => {
+    const firstOfMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), 1);
+    const startOffset = firstOfMonth.getDay();
+    const firstVisibleDay = new Date(firstOfMonth);
+    firstVisibleDay.setDate(firstOfMonth.getDate() - startOffset);
+
+    return Array.from({ length: 35 }, (_, index) => {
+      const date = new Date(firstVisibleDay);
+      date.setDate(firstVisibleDay.getDate() + index);
+      return date;
+    });
+  }, [calendarMonth]);
+  const assignmentsByDay = React.useMemo(() => {
+    const map = new Map<string, Assignment[]>();
+    for (const assignment of monthAssignments) {
+      const dueDate = new Date(assignment.dueDate);
+      if (Number.isNaN(dueDate.getTime())) continue;
+      const key = formatDayKey(dueDate);
+      const current = map.get(key) || [];
+      current.push(assignment);
+      map.set(key, current);
+    }
+    return map;
+  }, [monthAssignments]);
   const courseOptions = React.useMemo(() => {
     const map = new Map<string, string>();
     assignments.forEach((item) => map.set(item.courseId, item.courseName || item.courseId));
@@ -574,19 +605,26 @@ export default function DashboardPage() {
               variant="outline"
               size="sm"
               onClick={() => setSettingsOpen((value) => !value)}
-              className="gap-2"
+              className={`gap-2 ${appearance === 'dark' ? 'text-slate-100 border-slate-600 hover:bg-slate-800' : ''}`}
             >
               <Settings className="h-4 w-4" />
               Settings
             </Button>
-            <span className="text-sm text-slate-600 truncate max-w-[180px]" title={user.email}>
+            <span
+              className={`max-w-[180px] truncate text-sm ${appearance === 'dark' ? 'text-slate-100' : 'text-slate-600'}`}
+              title={user.email}
+            >
               {user.email}
             </span>
             <Button
               variant="outline"
               size="sm"
               onClick={handleLogout}
-              className="gap-2 text-slate-600 border-slate-200 hover:bg-slate-50"
+              className={`gap-2 ${
+                appearance === 'dark'
+                  ? 'text-slate-100 border-slate-600 hover:bg-slate-800'
+                  : 'text-slate-600 border-slate-200 hover:bg-slate-50'
+              }`}
             >
               <LogOut className="h-4 w-4" />
               Sign out
@@ -597,13 +635,28 @@ export default function DashboardPage() {
 
       <main className="container mx-auto flex max-w-4xl flex-col gap-6 p-6 sm:p-8">
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant={activePage === 'main' ? 'default' : 'outline'} size="sm" onClick={() => setActivePage('main')}>
+          <Button
+            variant={activePage === 'main' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setActivePage('main')}
+            className={appearance === 'dark' && activePage !== 'main' ? 'text-slate-100 border-slate-600 hover:bg-slate-800' : ''}
+          >
             Main Page
           </Button>
-          <Button variant={activePage === 'files' ? 'default' : 'outline'} size="sm" onClick={() => setActivePage('files')}>
+          <Button
+            variant={activePage === 'files' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setActivePage('files')}
+            className={appearance === 'dark' && activePage !== 'files' ? 'text-slate-100 border-slate-600 hover:bg-slate-800' : ''}
+          >
             Uploaded Files
           </Button>
-          <Button variant={activePage === 'calendar' ? 'default' : 'outline'} size="sm" onClick={() => setActivePage('calendar')}>
+          <Button
+            variant={activePage === 'calendar' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setActivePage('calendar')}
+            className={appearance === 'dark' && activePage !== 'calendar' ? 'text-slate-100 border-slate-600 hover:bg-slate-800' : ''}
+          >
             Calendar
           </Button>
         </div>
@@ -1054,32 +1107,48 @@ export default function DashboardPage() {
                 Next month
               </Button>
             </div>
-            {monthAssignments.length === 0 ? (
-              <SectionEmptyState
-                title="No assignments in this month"
-                description="Import from Canvas or move to another month."
-              />
-            ) : (
-              <div className="space-y-2">
-                {monthAssignments.map((assignment) => (
-                  <div key={assignment.assignmentId} className="rounded-xl border border-slate-200 bg-white p-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="font-medium text-slate-900">{assignment.title}</p>
-                        <p className="text-sm text-slate-600">{formatShortDate(assignment.dueDate)}</p>
-                      </div>
-                      <span
-                        className={`rounded-full border px-2.5 py-1 text-xs font-medium ${getCourseColor(
-                          assignment.courseId
-                        )}`}
-                      >
-                        {assignment.courseName || assignment.courseId}
-                      </span>
+            <div className="grid grid-cols-7 gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+                <div key={day} className="px-2 py-1 text-center">
+                  {day}
+                </div>
+              ))}
+            </div>
+            <div className="grid grid-cols-7 gap-2">
+              {calendarGridDays.map((date) => {
+                const isCurrentMonth = date.getMonth() === calendarMonth.getMonth();
+                const key = formatDayKey(date);
+                const dayAssignments = assignmentsByDay.get(key) || [];
+                return (
+                  <div
+                    key={key}
+                    className={`min-h-28 rounded-xl border p-2 ${
+                      isCurrentMonth ? 'border-slate-200 bg-white' : 'border-slate-100 bg-slate-50'
+                    }`}
+                  >
+                    <p className={`text-xs font-semibold ${isCurrentMonth ? 'text-slate-700' : 'text-slate-400'}`}>
+                      {date.getDate()}
+                    </p>
+                    <div className="mt-2 space-y-1">
+                      {dayAssignments.slice(0, 2).map((assignment) => (
+                        <div
+                          key={assignment.assignmentId}
+                          className={`truncate rounded border px-1.5 py-1 text-[10px] font-medium ${getCourseColor(
+                            assignment.courseId
+                          )}`}
+                          title={`${assignment.title} - ${assignment.courseName || assignment.courseId}`}
+                        >
+                          {(assignment.courseName || assignment.courseId) + ': ' + assignment.title}
+                        </div>
+                      ))}
+                      {dayAssignments.length > 2 ? (
+                        <p className="text-[10px] text-slate-500">+{dayAssignments.length - 2} more</p>
+                      ) : null}
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
+                );
+              })}
+            </div>
           </CardContent>
         </Card>
 
