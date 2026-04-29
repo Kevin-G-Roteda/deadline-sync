@@ -640,7 +640,9 @@ export default function DashboardPage() {
               variant="outline"
               size="sm"
               onClick={() => setSettingsOpen((value) => !value)}
-              className={`gap-2 ${appearance === 'dark' ? 'text-slate-100 border-slate-600 hover:bg-slate-800' : ''}`}
+              className={`gap-2 ${
+                appearance === 'dark' ? 'text-slate-900 bg-slate-100 border-slate-300 hover:bg-slate-200' : ''
+              }`}
             >
               <Settings className="h-4 w-4" />
               Settings
@@ -657,7 +659,7 @@ export default function DashboardPage() {
               onClick={handleLogout}
               className={`gap-2 ${
                 appearance === 'dark'
-                  ? 'text-slate-100 border-slate-600 hover:bg-slate-800'
+                  ? 'text-slate-900 bg-slate-100 border-slate-300 hover:bg-slate-200'
                   : 'text-slate-600 border-slate-200 hover:bg-slate-50'
               }`}
             >
@@ -682,7 +684,13 @@ export default function DashboardPage() {
             variant={activePage === 'files' ? 'default' : 'outline'}
             size="sm"
             onClick={() => setActivePage('files')}
-            className={appearance === 'dark' && activePage !== 'files' ? 'text-slate-100 border-slate-600 hover:bg-slate-800' : ''}
+            className={
+              appearance === 'dark'
+                ? activePage === 'files'
+                  ? 'text-slate-900'
+                  : 'text-slate-900 bg-slate-100 border-slate-300 hover:bg-slate-200'
+                : ''
+            }
           >
             Uploaded Files
           </Button>
@@ -690,7 +698,13 @@ export default function DashboardPage() {
             variant={activePage === 'calendar' ? 'default' : 'outline'}
             size="sm"
             onClick={() => setActivePage('calendar')}
-            className={appearance === 'dark' && activePage !== 'calendar' ? 'text-slate-100 border-slate-600 hover:bg-slate-800' : ''}
+            className={
+              appearance === 'dark'
+                ? activePage === 'calendar'
+                  ? 'text-slate-900'
+                  : 'text-slate-900 bg-slate-100 border-slate-300 hover:bg-slate-200'
+                : ''
+            }
           >
             Calendar
           </Button>
