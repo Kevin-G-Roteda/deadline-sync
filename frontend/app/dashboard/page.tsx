@@ -1131,15 +1131,30 @@ export default function DashboardPage() {
                     </p>
                     <div className="mt-2 space-y-1">
                       {dayAssignments.slice(0, 2).map((assignment) => (
-                        <div
-                          key={assignment.assignmentId}
-                          className={`truncate rounded border px-1.5 py-1 text-[10px] font-medium ${getCourseColor(
-                            assignment.courseId
-                          )}`}
-                          title={`${assignment.title} - ${assignment.courseName || assignment.courseId}`}
-                        >
-                          {(assignment.courseName || assignment.courseId) + ': ' + assignment.title}
-                        </div>
+                        assignment.sourceUrl ? (
+                          <a
+                            key={assignment.assignmentId}
+                            href={assignment.sourceUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`block truncate rounded border px-1.5 py-1 text-[10px] font-medium underline-offset-2 hover:underline ${getCourseColor(
+                              assignment.courseId
+                            )}`}
+                            title={`Open in Canvas: ${assignment.title}`}
+                          >
+                            {(assignment.courseName || assignment.courseId) + ': ' + assignment.title}
+                          </a>
+                        ) : (
+                          <div
+                            key={assignment.assignmentId}
+                            className={`truncate rounded border px-1.5 py-1 text-[10px] font-medium ${getCourseColor(
+                              assignment.courseId
+                            )}`}
+                            title={`${assignment.title} - ${assignment.courseName || assignment.courseId}`}
+                          >
+                            {(assignment.courseName || assignment.courseId) + ': ' + assignment.title}
+                          </div>
+                        )
                       ))}
                       {dayAssignments.length > 2 ? (
                         <p className="text-[10px] text-slate-500">+{dayAssignments.length - 2} more</p>
