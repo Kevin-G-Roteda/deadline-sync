@@ -38,6 +38,92 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+.dashboard-shell {
+  position: relative;
+}
+
+.dashboard-theme-light {
+  background:
+    radial-gradient(1200px 500px at 78% -12%, rgba(56, 189, 248, 0.28), transparent 62%),
+    radial-gradient(900px 420px at 28% 8%, rgba(37, 99, 235, 0.28), transparent 64%),
+    linear-gradient(180deg, #f3f8ff 0%, #e8f2ff 42%, #f4f9ff 100%);
+}
+
+.dashboard-theme-dark {
+  background:
+    radial-gradient(1200px 550px at 80% -12%, rgba(56, 189, 248, 0.2), transparent 62%),
+    radial-gradient(900px 480px at 22% 10%, rgba(37, 99, 235, 0.2), transparent 64%),
+    linear-gradient(180deg, #030712 0%, #0b1220 46%, #040916 100%);
+}
+
+.dashboard-blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(28px);
+  transition: transform 220ms linear;
+  animation: dashboardFloat 14s ease-in-out infinite;
+}
+
+.dashboard-blob-a {
+  width: min(72vw, 860px);
+  height: min(56vw, 540px);
+  top: -160px;
+  left: -140px;
+  background: radial-gradient(circle at 40% 30%, rgba(37, 99, 235, 0.52), rgba(14, 165, 233, 0.12));
+}
+
+.dashboard-blob-b {
+  width: min(80vw, 980px);
+  height: min(64vw, 620px);
+  top: -220px;
+  right: -220px;
+  background: radial-gradient(circle at 58% 40%, rgba(14, 165, 233, 0.5), rgba(37, 99, 235, 0.1));
+  animation-delay: -4s;
+}
+
+.dashboard-blob-c {
+  width: min(76vw, 940px);
+  height: min(50vw, 500px);
+  top: 120px;
+  left: 24%;
+  background: radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.22), rgba(56, 189, 248, 0.08));
+  animation-delay: -8s;
+}
+
+.dashboard-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 18%, transparent 0%, rgba(2, 6, 23, 0.22) 100%);
+}
+
+.dashboard-shell .app-card {
+  backdrop-filter: blur(6px);
+  transition: box-shadow 180ms ease, border-color 180ms ease;
+  box-shadow:
+    0 14px 35px rgba(15, 23, 42, 0.18),
+    0 0 calc(18px + 32px * var(--scroll-glow, 0.2)) rgba(56, 189, 248, calc(0.12 + var(--scroll-glow, 0.2) * 0.12));
+}
+
+.dashboard-theme-light .app-card {
+  background-color: rgba(255, 255, 255, 0.84);
+  border-color: rgba(148, 163, 184, 0.3);
+}
+
+.dashboard-theme-dark .app-card {
+  background-color: rgba(248, 250, 252, 0.9);
+  border-color: rgba(148, 163, 184, 0.4);
+}
+
+@keyframes dashboardFloat {
+  0%,
+  100% {
+    transform: translateY(0px) scale(1);
+  }
+  50% {
+    transform: translateY(18px) scale(1.02);
+  }
+}
+
 .dark {
   --background: 222.2 84% 4.9%;
   --foreground: 210 40% 98%;

@@ -323,6 +323,7 @@ export default function DashboardPage() {
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
   const [selectedCourseId, setSelectedCourseId] = React.useState<string>('all');
+  const [scrollDepth, setScrollDepth] = React.useState(0);
 
   React.useEffect(() => {
     if (!user) return;
@@ -412,6 +413,17 @@ export default function DashboardPage() {
       router.replace('/');
     }
   }, [loading, user, router]);
+
+  React.useEffect(() => {
+    const onScroll = () => {
+      const y = window.scrollY || 0;
+      const progress = Math.min(y / 1400, 1);
+      setScrollDepth(progress);
+    };
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   const handleLogout = async () => {
     await logout();
@@ -581,20 +593,43 @@ export default function DashboardPage() {
 
   return (
     <div
-      className={`min-h-screen ${
+      className={`dashboard-shell min-h-screen ${
         appearance === 'dark'
-          ? 'bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-100'
-          : 'bg-gradient-to-br from-slate-50 to-slate-100'
+          ? 'dashboard-theme-dark text-slate-100'
+          : 'dashboard-theme-light text-slate-900'
       }`}
-      style={{ fontSize: `${fontScale}rem` }}
+      style={
+        {
+          fontSize: `${fontScale}rem`,
+          '--scroll-glow': (0.2 + scrollDepth * 0.55).toFixed(3),
+        } as React.CSSProperties
+      }
     >
+      <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+        <div
+          className={`dashboard-blob dashboard-blob-a ${appearance === 'dark' ? 'opacity-70' : 'opacity-80'}`}
+          style={{ transform: `translate3d(0, ${-24 - scrollDepth * 48}px, 0)` }}
+        />
+        <div
+          className={`dashboard-blob dashboard-blob-b ${appearance === 'dark' ? 'opacity-60' : 'opacity-70'}`}
+          style={{ transform: `translate3d(0, ${-18 + scrollDepth * 64}px, 0)` }}
+        />
+        <div
+          className={`dashboard-blob dashboard-blob-c ${appearance === 'dark' ? 'opacity-50' : 'opacity-65'}`}
+          style={{ transform: `translate3d(0, ${-8 + scrollDepth * 30}px, 0)` }}
+        />
+        <div className="dashboard-vignette" />
+      </div>
       <header
         className={`sticky top-0 z-10 border-b backdrop-blur-sm ${
           appearance === 'dark' ? 'border-slate-800 bg-slate-900/80' : 'border-slate-200 bg-white/80'
         }`}
       >
         <div className="container mx-auto max-w-4xl px-4 sm:px-6 h-14 flex items-center justify-between">
-          <Link href="/dashboard" className="flex items-center gap-2 text-slate-900 font-semibold">
+          <Link
+            href="/dashboard"
+            className={`flex items-center gap-2 font-semibold ${appearance === 'dark' ? 'text-slate-100' : 'text-slate-900'}`}
+          >
             <div className="h-8 w-8 rounded-lg bg-teal-600 flex items-center justify-center">
               <Target className="h-4 w-4 text-white" />
             </div>
