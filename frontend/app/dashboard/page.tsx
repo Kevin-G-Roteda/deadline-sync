@@ -761,7 +761,14 @@ export default function DashboardPage() {
                       Send help message
                     </a>
                   </Button>
-                  <p className="text-xs text-slate-500">Video help placeholders can be added here, including YouTube links.</p>
+                  <a
+                    href="https://youtu.be/HEUF9lQcCis"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-sky-600 underline underline-offset-2 hover:text-sky-500"
+                  >
+                    Watch help video
+                  </a>
                 </div>
               </div>
             </CardContent>
