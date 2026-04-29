@@ -756,16 +756,16 @@ export default function DashboardPage() {
         {activePage === 'main' ? (
         <Card className="overflow-hidden border-0 bg-slate-900 text-white shadow-xl">
           <CardHeader>
-            <CardTitle className="text-2xl">{greeting}</CardTitle>
-            <CardDescription className="text-slate-300">
+            <CardTitle className="text-2xl text-slate-900">{greeting}</CardTitle>
+            <CardDescription className="text-slate-800">
               {user.name || user.email}, your planner is organized around what needs attention now, what you can start early, and the files tied to your account.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Alert className="border-teal-500/30 bg-teal-500/10 text-white">
               <CheckCircle2 className="h-4 w-4 text-teal-300" />
-              <AlertTitle className="text-white">Authenticated and synced</AlertTitle>
-              <AlertDescription className="text-slate-200">
+              <AlertTitle className="text-slate-900">Authenticated and synced</AlertTitle>
+              <AlertDescription className="text-slate-800">
                 Your Cognito account is active and the app now attempts to sync your user profile to the `Users` DynamoDB table on login.
               </AlertDescription>
             </Alert>
